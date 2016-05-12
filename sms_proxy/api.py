@@ -91,10 +91,78 @@ db.create_all()
 db.session.commit()
 
 
+class InvalidAPIUsage(Exception):
+    def __init__(self, message, status_code=400, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or())
+        rv['message'] = self.message
+        return rv
+
+
 @app.route("/tn", methods=['POST', 'GET', 'DELETE'])
 def viritual_tn():
-    pass
-
+    # Add a TN to the virtual TN pool
+    if request.method == 'POST':
+        body = request.json
+        try:
+            value = str(body['value'])
+            assert len(value) <= 18
+        except (AssertionError, ValueError):
+            raise InvalidAPIUsage(
+                "Required argument: 'value' (str, length <= 18)",
+                payload={'reason':
+                         'invalidAPIUsage'})
+        virtual_tn = VirtualTN(value)
+        db.session.add(virtual_tn)
+        try:
+            db.session.commit()
+            return Response(
+                json.dumps({"message": "successfully added {} to pool".format(value)}),
+                content_type="application/json")
+        except IntegrityError:
+            db.session.rollback()
+            msg = "did not add virtual TN {} to the pool -- already exists".format(value)
+            log.debug({"message": msg})
+            raise InvalidAPIUsage(
+                "Virtual TN already exists",
+                payload={'reason':
+                         'invalidAPIUsage'})
+    # Retrieve all virtual TNs from pool
+    if request.method == 'GET':
+        virtual_tns = VirtualTN.query.all()
+        return Response(
+            json.dumps({"virtual_tns": virtual_tns,
+                        "count": len(virtual_tns)}),
+            content_type="application/json")
+    # Delete a virtual TN from pool
+    if request.method == "DELETE":
+        body = request.json
+        try:
+            value = str(body['value'])
+        except (AssertionError, ValueError):
+            raise InvalidAPIUsage(
+                "Required argument: 'value' (str, length <= 18)",
+                payload={'reason':
+                         'invalidAPIUsage'})
+        try:
+            virtual_tn = VirtualTN.query.filter_by(value=value).one()
+        except NoResultFound:
+            msg = "could not delete virtual TN ({}) because it does not exist".format(value)
+            log.info({"message": msg})
+            raise InvalidAPIUsage(
+                "Virtual TN could not be deleted because it does not exist",
+                payload={'reason':
+                         'invalidAPIUsage'})
+        db.session.delete(virtual_tn)
+        db.session.commit()
+        return Response(
+            json.dumps({"message": "successfully removed {} from pool".format(value)}),
+            content_type="application/json")
 
 @app.route("/session", methods=['POST', 'GET', 'DELETE'])
 def proxy_session():

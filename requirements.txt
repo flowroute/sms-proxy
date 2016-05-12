@@ -1,0 +1,19 @@
+Flask==0.10.1
+Flask-WTF==0.12
+Flask-SQLAlchemy==2.1
+itsdangerous==0.24
+Jinja2==2.8
+MarkupSafe==0.23
+Werkzeug==0.11.4
+WTForms==2.1
+pytest==2.9.0
+arrow==0.7.0
+python-json-logger==0.1.4
+requests==2.9.1
+Unirest==1.1.6
+jsonpickle==0.7.1
+poster==0.8.1
+gunicorn==19.4.5
+simplejson==3.8.2
+git+https://github.com/flowroute/flowroute-messaging-python.git#egg=flowroute-messaging-python
+-e .
