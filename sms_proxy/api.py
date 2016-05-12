@@ -10,7 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
-from settings import (DEBUG_MODE, TEST_DB, DB)
+from settings import (COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG, SEND_START_MSG, SEND_END_MSG, DEBUG_MODE, TEST_DB, DB)
 
 from credentials import (FLOWROUTE_ACCESS_KEY, FLOWROUTE_SECRET_KEY)
 from log import log
@@ -133,16 +133,65 @@ def end_session(session_id):
     Ends a given session, and releases the virtual TN back into the pool
     """
     session = Sessions.query.filter_by(id=session_id).one()
+    participant_a = session.participant_a
+    participant_b = session.participant_b
     virtual_tn = VirtualTN.query.filter_by(session_id=session_id).one()
-    import pdb; pdb.set_trace()
     virtual_tn.session_id = None
     db.session.commit()
     db.session.delete(session)
     db.session.commit()
-    msg = "Removed expired session {} and released {} back to pool".format(
+    if SEND_END_MSG:
+        recipients = [participant_a, participant_b]
+        send_message(
+            recipients,
+            virtual_tn.value,
+            SESSION_END_MSG,
+            is_system_msg=True)
+    msg = "Ended session {} and released {} back to pool".format(
         session_id,
         virtual_tn.value)
     log.info({"message": msg})
+
+
+def send_message(recipients, virtual_tn, msg, is_system_msg=False):
+    if is_system_msg:
+        msg = "{} SYSTEM MESSAGE: {}".format(COMPANY_NAME.upper(), msg)
+    for recipient in recipients:
+        message = Message(
+            to=recipient,
+            from_=virtual_tn,
+            content=msg)
+        try:
+            app.sms_controller.create_message(message)
+        except Exception as e:
+            try:
+                log.info("got exception e {}, code: {}, response {}".format(
+                    e, e.response_code, e.response_body))
+            except:
+                pass
+            raise
+        else:
+            log.info(
+                {"message": "sent SMS to {}".format(recipient)})
+
+
+def get_other_participant(virtual_tn, participant):
+    """
+    Returns the 2nd particpant when given the virtual TN and the first 
+    participant
+    """
+    try:
+        session = Sessions.query.filter_by(virtual_tn=virtual_tn).one()
+    except NoResultFound:
+            msg = ("A session with virtual TN ({})"
+                   " could not be found").format(virtual_tn)
+            log.info({"message": msg})
+    participant_a = session.participant_a
+    participant_b = session.participant_b
+    if participant_a == participant:
+        return participant_b
+    else:
+        return participant_a
 
 
 @app.route("/tn", methods=['POST', 'GET', 'DELETE'])
@@ -259,9 +308,16 @@ def proxy_session():
             virtual_tn.session_id = session.id
             db.session.add(session)
             db.session.commit()
+            if SEND_START_MSG:
+                recipients = [participant_a, participant_b]
+                send_message(
+                    recipients,
+                    virtual_tn.value,
+                    SESSION_START_MSG,
+                    is_system_msg=True)
             return Response(
                 json.dumps(
-                    {"message": "created session {} with expiry of {}".format(
+                    {"message": "created session '{}' with expiry of {}".format(
                         session.id, session.expiry_date)}),
                 content_type="application/json")
     if request.method == 'GET':
@@ -303,9 +359,30 @@ def proxy_session():
                          'Session not found'})
         end_session(session_id)
         return Response(
-            json.dumps({"message": "successfully ended session {}".format(
+            json.dumps({"message": "successfully ended session '{}'".format(
                 session_id)}),
             content_type="application/json")
+
+
+@app.route("/receive", methods=['POST'])
+def inbound_handler():
+    body = request.json()
+    try:
+        virtual_tn = body['to']
+        tx_participant = body['from']
+        message = body['body']
+    except (KeyError):
+        msg = ("Malformed inbound message: {}".format(body))
+        log.info({"message": msg})
+    rcv_participant = get_other_participant(virtual_tn, tx_participant)
+    if rcv_participant:
+        recipients = [rcv_participant]
+        send_message(
+            recipients,
+            virtual_tn.value,
+            message
+        )
+
 
 if __name__ == "__main__":
     db.create_all()
