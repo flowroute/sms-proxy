@@ -38,7 +38,7 @@ class VirtualTN(db.Model):
     """
     id = db.Column(db.Integer)
     value = db.Column(db.String(18), primary_key=True)
-    session_id = db.Column(db.String(32))
+    session_id = db.Column(db.String(40))
 
     def __init__(self, value):
         self.value = value
@@ -62,7 +62,7 @@ class Sessions(db.Model):
         minutes, is not provided when creating the session, the
         DEFAULT_EXPIRATION in settings is used
     """
-    id = db.Column(db.String(32), primary_key=True)
+    id = db.Column(db.String(40), primary_key=True)
     date_created = db.Column(db.DateTime)
     virtual_TN = db.Column(db.String(18))
     participant_a = db.Column(db.String(18))
@@ -70,7 +70,7 @@ class Sessions(db.Model):
     expiry_date = db.Column(db.DateTime, nullable=True)
 
     def __init__(self, virtual_TN, participant_A, participant_B, expiry_window=None):
-        self.id = uuid.uuid4()
+        self.id = str(uuid.uuid4())
         self.date_created = datetime.utcnow()
         self.virtual_TN = virtual_TN
         self.participant_a = participant_A
@@ -101,6 +101,50 @@ class InvalidAPIUsage(Exception):
         return rv
 
 
+def get_available_virtual_tn():
+    """
+    Returns a virtual TN that does not already have a session attached to it,
+    otherwise returns None
+    """
+    try:
+        return VirtualTN.query.filter_by(session_id=None).first()
+    except NoResultFound:
+        return None
+
+
+def clean_expired_sessions():
+    """
+    Removes sessions that have an expiry date in the past and releases
+    the corresponding virtual TN back to the pool
+    """
+    current_timestamp = datetime.utcnow()
+    current_timestamp = datetime(2016, 07, 20)
+    try:
+        expired_sessions = db.session.query(Sessions).filter(
+            Sessions.expiry_date <= current_timestamp)
+    except NoResultFound:
+        return
+    for session in expired_sessions:
+        end_session(session.id)
+
+
+def end_session(session_id):
+    """
+    Ends a given session, and releases the virtual TN back into the pool
+    """
+    session = Sessions.query.filter_by(id=session_id).one()
+    virtual_tn = VirtualTN.query.filter_by(session_id=session_id).one()
+    import pdb; pdb.set_trace()
+    virtual_tn.session_id = None
+    db.session.commit()
+    db.session.delete(session)
+    db.session.commit()
+    msg = "Removed expired session {} and released {} back to pool".format(
+        session_id,
+        virtual_tn.value)
+    log.info({"message": msg})
+
+
 @app.route("/tn", methods=['POST', 'GET', 'DELETE'])
 def viritual_tn():
     # Add a TN to the virtual TN pool
@@ -109,7 +153,7 @@ def viritual_tn():
         try:
             value = str(body['value'])
             assert len(value) <= 18
-        except (AssertionError, ValueError):
+        except (AssertionError, KeyError):
             raise InvalidAPIUsage(
                 "Required argument: 'value' (str, length <= 18)",
                 payload={'reason':
@@ -121,32 +165,35 @@ def viritual_tn():
         except IntegrityError:
             # TODO: WHY DONT WE EVER GET HERE??
             db.session.rollback()
-            msg = "did not add virtual TN {} to the pool -- already exists".format(value)
+            msg = ("did not add virtual TN {} to the pool "
+                   "-- already exists").format(value)
             log.debug({"message": msg})
             raise InvalidAPIUsage(
                 "Virtual TN already exists",
                 payload={'reason':
                          'duplicate virtual TN'})
         return Response(
-            json.dumps({"message": "successfully added {} to pool".format(value)}),
+            json.dumps(
+                {"message": "successfully added {} to pool".format(
+                    value)}),
             content_type="application/json")
     # Retrieve all virtual TNs from pool
     if request.method == 'GET':
         virtual_tns = VirtualTN.query.all()
         res = [{'value': tn.value, 'session_id': tn.session_id} for tn in virtual_tns]
-        available = len([tn.value for tn in virtual_tns if tn.session_id != 'null'])
+        available = len([tn.value for tn in virtual_tns if tn.session_id is None])
         return Response(
             json.dumps({"virtual_tns": res,
                         "pool_size": len(res),
                         "available": available,
-                        "in_use": len(res)-available}),
+                        "in_use": len(res) - available}),
             content_type="application/json")
     # Delete a virtual TN from pool
     if request.method == "DELETE":
         body = request.json
         try:
             value = str(body['value'])
-        except (AssertionError, ValueError):
+        except (AssertionError, KeyError):
             raise InvalidAPIUsage(
                 "Required argument: 'value' (str, length <= 18)",
                 payload={'reason':
@@ -154,7 +201,8 @@ def viritual_tn():
         try:
             virtual_tn = VirtualTN.query.filter_by(value=value).one()
         except NoResultFound:
-            msg = "could not delete virtual TN ({}) because it does not exist".format(value)
+            msg = ("could not delete virtual TN ({})"
+                   " because it does not exist").format(value)
             log.info({"message": msg})
             raise InvalidAPIUsage(
                 "Virtual TN could not be deleted because it does not exist",
@@ -164,15 +212,100 @@ def viritual_tn():
         db.session.delete(virtual_tn)
         db.session.commit()
         return Response(
-            json.dumps({"message": "successfully removed {} from pool".format(value)}),
+            json.dumps({"message": "successfully removed {} from pool".format(
+                value)}),
             content_type="application/json")
 
 
 @app.route("/session", methods=['POST', 'GET', 'DELETE'])
 def proxy_session():
-    # Create a new session 
-
-
+    # Create a new session
+    if request.method == "POST":
+        body = request.json
+        try:
+            participant_a = body['participant_a']
+            participant_b = body['participant_b']
+            assert len(participant_a) <= 18
+            assert len(participant_b) <= 18
+        except (AssertionError, KeyError):
+            raise InvalidAPIUsage(
+                ("Required argument: 'participant_a' (str, length <= 18)"
+                 ", 'participant_b' (str, length <= 18)"),
+                payload={'reason':
+                         'invalidAPIUsage'})
+        if 'expiry_window' in body:
+            expiry_window = body['expiry_window']
+        else:
+            expiry_window = None
+        # We'll take this time to clear out any expired sessions and release
+        # TNs back to the pool if possible
+        clean_expired_sessions()
+        virtual_tn = get_available_virtual_tn()
+        if virtual_tn is None:
+            msg = "Could not create session -- No virtual TNs available"
+            log.info({"message": msg})
+            return Response(
+                json.dumps(
+                    {"message": msg}),
+                content_type="application/json",
+                status=400)
+        else:
+            session = Sessions(
+                virtual_tn.value,
+                participant_a,
+                participant_b,
+                expiry_window
+            )
+            virtual_tn.session_id = session.id
+            db.session.add(session)
+            db.session.commit()
+            return Response(
+                json.dumps(
+                    {"message": "created session {} with expiry of {}".format(
+                        session.id, session.expiry_date)}),
+                content_type="application/json")
+    if request.method == 'GET':
+        sessions = Sessions.query.all()
+        res = [{
+            'id': s.id,
+            'date_created': s.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+            'virtual_tn': s.virtual_TN,
+            'participant_a': s.participant_a,
+            'participant_b': s.participant_b,
+            'expiry_date': s.expiry_date.strftime('%Y-%m-%d %H:%M:%S')
+            if s.expiry_date else None}
+            for s in sessions]
+        return Response(
+            json.dumps({"total_sessions": len(res),
+                        "sessions": res}),
+            content_type="application/json")
+    # Delete an existing session
+    if request.method == "DELETE":
+        body = request.json
+        try:
+            session_id = str(body['session_id'])
+        except (KeyError):
+            raise InvalidAPIUsage(
+                "Required argument: 'session_id' (str)",
+                payload={'reason':
+                         'invalidAPIUsage'})
+        try:
+            session = Sessions.query.filter_by(id=session_id).one()
+        except NoResultFound:
+            msg = ("could not delete session ({}) "
+                   "because it does not exist").format(
+                session_id)
+            log.info({"message": msg})
+            raise InvalidAPIUsage(
+                "Session could not be deleted because it does not exist",
+                status_code=404,
+                payload={'reason':
+                         'Session not found'})
+        end_session(session_id)
+        return Response(
+            json.dumps({"message": "successfully ended session {}".format(
+                session_id)}),
+            content_type="application/json")
 
 if __name__ == "__main__":
     db.create_all()
