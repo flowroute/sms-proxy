@@ -10,13 +10,10 @@ from sqlalchemy.orm.exc import NoResultFound
 from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
-from sms_proxy.settings import (
-    DEBUG_MODE, CODE_LENGTH, CODE_EXPIRATION,
-    TEST_DB, DB, RETRIES_ALLOWED, AUTH_MESSAGE)
+from settings import (DEBUG_MODE, TEST_DB, DB)
 
-from credentials import (FLOWROUTE_ACCESS_KEY, FLOWROUTE_SECRET_KEY,
-                         FLOWROUTE_NUMBER)
-from sms_proxy.log import log
+from credentials import (FLOWROUTE_ACCESS_KEY, FLOWROUTE_SECRET_KEY)
+from log import log
 
 
 app = Flask(__name__)
@@ -39,8 +36,8 @@ class VirtualTN(db.Model):
     session_id (str):
         The session_id, if any, for which this virtual TN is assigned to.
     """
-    id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String(18))
+    id = db.Column(db.Integer)
+    value = db.Column(db.String(18), primary_key=True)
     session_id = db.Column(db.String(32))
 
     def __init__(self, value):
@@ -118,26 +115,31 @@ def viritual_tn():
                 payload={'reason':
                          'invalidAPIUsage'})
         virtual_tn = VirtualTN(value)
-        db.session.add(virtual_tn)
         try:
+            db.session.add(virtual_tn)
             db.session.commit()
-            return Response(
-                json.dumps({"message": "successfully added {} to pool".format(value)}),
-                content_type="application/json")
         except IntegrityError:
+            # TODO: WHY DONT WE EVER GET HERE??
             db.session.rollback()
             msg = "did not add virtual TN {} to the pool -- already exists".format(value)
             log.debug({"message": msg})
             raise InvalidAPIUsage(
                 "Virtual TN already exists",
                 payload={'reason':
-                         'invalidAPIUsage'})
+                         'duplicate virtual TN'})
+        return Response(
+            json.dumps({"message": "successfully added {} to pool".format(value)}),
+            content_type="application/json")
     # Retrieve all virtual TNs from pool
     if request.method == 'GET':
         virtual_tns = VirtualTN.query.all()
+        res = [{'value': tn.value, 'session_id': tn.session_id} for tn in virtual_tns]
+        available = len([tn.value for tn in virtual_tns if tn.session_id != 'null'])
         return Response(
-            json.dumps({"virtual_tns": virtual_tns,
-                        "count": len(virtual_tns)}),
+            json.dumps({"virtual_tns": res,
+                        "pool_size": len(res),
+                        "available": available,
+                        "in_use": len(res)-available}),
             content_type="application/json")
     # Delete a virtual TN from pool
     if request.method == "DELETE":
@@ -156,17 +158,20 @@ def viritual_tn():
             log.info({"message": msg})
             raise InvalidAPIUsage(
                 "Virtual TN could not be deleted because it does not exist",
+                status_code=404,
                 payload={'reason':
-                         'invalidAPIUsage'})
+                         'virtual TN not found'})
         db.session.delete(virtual_tn)
         db.session.commit()
         return Response(
             json.dumps({"message": "successfully removed {} from pool".format(value)}),
             content_type="application/json")
 
+
 @app.route("/session", methods=['POST', 'GET', 'DELETE'])
 def proxy_session():
-    pass
+    # Create a new session 
+
 
 
 if __name__ == "__main__":
