@@ -2,7 +2,7 @@ import uuid
 import simplejson as json
 from datetime import datetime, timedelta
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, Response
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -118,7 +118,6 @@ def clean_expired_sessions():
     the corresponding virtual TN back to the pool
     """
     current_timestamp = datetime.utcnow()
-    current_timestamp = datetime(2016, 07, 20)
     try:
         expired_sessions = db.session.query(Sessions).filter(
             Sessions.expiry_date <= current_timestamp)
@@ -146,6 +145,7 @@ def end_session(session_id):
             recipients,
             virtual_tn.value,
             SESSION_END_MSG,
+            session_id,
             is_system_msg=True)
     msg = "Ended session {} and released {} back to pool".format(
         session_id,
@@ -153,9 +153,9 @@ def end_session(session_id):
     log.info({"message": msg})
 
 
-def send_message(recipients, virtual_tn, msg, is_system_msg=False):
+def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
     if is_system_msg:
-        msg = "{} SYSTEM MESSAGE: {}".format(COMPANY_NAME.upper(), msg)
+        msg = "[{}]: {}".format(COMPANY_NAME.upper(), msg)
     for recipient in recipients:
         message = Message(
             to=recipient,
@@ -172,26 +172,33 @@ def send_message(recipients, virtual_tn, msg, is_system_msg=False):
             raise
         else:
             log.info(
-                {"message": "sent SMS to {}".format(recipient)})
+                {"message": "Message sent to {} for session {}".format(recipient, session_id)})
 
 
-def get_other_participant(virtual_tn, participant):
+def get_other_participant(virtual_tn, sender):
     """
-    Returns the 2nd particpant when given the virtual TN and the first 
+    Returns the 2nd particpant and session when given the virtual TN and the first 
     participant
     """
+    session = None
     try:
-        session = Sessions.query.filter_by(virtual_tn=virtual_tn).one()
+        session = Sessions.query.filter_by(virtual_TN=virtual_tn).one()
     except NoResultFound:
             msg = ("A session with virtual TN ({})"
                    " could not be found").format(virtual_tn)
             log.info({"message": msg})
-    participant_a = session.participant_a
-    participant_b = session.participant_b
-    if participant_a == participant:
-        return participant_b
-    else:
-        return participant_a
+            return None, None
+    if session:
+        participant_a = session.participant_a
+        participant_b = session.participant_b
+        if participant_a == sender:
+            return participant_b, session.id
+        elif participant_b == sender:
+            return participant_a, session.id
+        else:
+            msg = ("{} is not a participant of session {}").format(sender, session.id)
+            log.info({"message": msg})
+            return None, None
 
 
 @app.route("/tn", methods=['POST', 'GET', 'DELETE'])
@@ -308,17 +315,21 @@ def proxy_session():
             virtual_tn.session_id = session.id
             db.session.add(session)
             db.session.commit()
+            expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             if SEND_START_MSG:
                 recipients = [participant_a, participant_b]
                 send_message(
                     recipients,
                     virtual_tn.value,
                     SESSION_START_MSG,
+                    session.id,
                     is_system_msg=True)
             return Response(
                 json.dumps(
-                    {"message": "created session '{}' with expiry of {}".format(
-                        session.id, session.expiry_date)}),
+                    {"message": "created session",
+                     "session_id": session.id,
+                     "expiry_date": expiry_date,
+                     "virtual_tn": virtual_tn.value}),
                 content_type="application/json")
     if request.method == 'GET':
         sessions = Sessions.query.all()
@@ -348,7 +359,7 @@ def proxy_session():
         try:
             session = Sessions.query.filter_by(id=session_id).one()
         except NoResultFound:
-            msg = ("could not delete session ({}) "
+            msg = ("could not delete session '{}' "
                    "because it does not exist").format(
                 session_id)
             log.info({"message": msg})
@@ -366,7 +377,10 @@ def proxy_session():
 
 @app.route("/receive", methods=['POST'])
 def inbound_handler():
-    body = request.json()
+    # We'll take this time to clear out any expired sessions and release
+    # TNs back to the pool if possible
+    clean_expired_sessions()
+    body = request.json
     try:
         virtual_tn = body['to']
         tx_participant = body['from']
@@ -374,14 +388,22 @@ def inbound_handler():
     except (KeyError):
         msg = ("Malformed inbound message: {}".format(body))
         log.info({"message": msg})
-    rcv_participant = get_other_participant(virtual_tn, tx_participant)
-    if rcv_participant:
+    rcv_participant, session_id = get_other_participant(virtual_tn, tx_participant)
+    if rcv_participant is not None:
         recipients = [rcv_participant]
         send_message(
             recipients,
-            virtual_tn.value,
-            message
+            virtual_tn,
+            message,
+            session_id
         )
+        return Response(
+            json.dumps({"message": "successfully proxied message to '{}' for session {}".format(
+                rcv_participant, session_id)}),
+            content_type="application/json")
+    return Response(
+        json.dumps({"message": "Session not found, or {} is not authorized to participate".format(tx_participant)}),
+        content_type="application/json")
 
 
 if __name__ == "__main__":
