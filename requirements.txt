@@ -15,7 +15,6 @@ python-json-logger==0.1.4
 requests==2.10.0
 simplejson==3.8.2
 six==1.10.0
-sms-proxy==0.0.1
 SQLAlchemy==1.0.12
 Unirest==1.1.7
 Werkzeug==0.11.9

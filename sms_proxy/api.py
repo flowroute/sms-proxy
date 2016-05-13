@@ -375,7 +375,7 @@ def proxy_session():
             content_type="application/json")
 
 
-@app.route("/receive", methods=['POST'])
+@app.route("/", methods=['POST'])
 def inbound_handler():
     # We'll take this time to clear out any expired sessions and release
     # TNs back to the pool if possible
