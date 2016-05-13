@@ -9,6 +9,7 @@ SESSION_START_MSG = "This session has begun, send a message!"
 SESSION_END_MSG = "This session has ended, see you again soon!"
 SEND_START_MSG = True
 SEND_END_MSG = True
+SESSION_END_TRIGGER = "**END"
 
 TEST_DB = "test_sms_proxy.db"
 DB = "sms_proxy.db"

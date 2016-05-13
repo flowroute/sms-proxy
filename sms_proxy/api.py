@@ -10,7 +10,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
-from settings import (COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG, SEND_START_MSG, SEND_END_MSG, DEBUG_MODE, TEST_DB, DB)
+from settings import (COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG,
+    SEND_START_MSG, SEND_END_MSG, SESSION_END_TRIGGER,
+    DEBUG_MODE, TEST_DB, DB)
 
 from credentials import (FLOWROUTE_ACCESS_KEY, FLOWROUTE_SECRET_KEY)
 from log import log
@@ -318,18 +320,28 @@ def proxy_session():
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             if SEND_START_MSG:
                 recipients = [participant_a, participant_b]
+                msg = SESSION_START_MSG
+                if SESSION_END_TRIGGER:
+                    msg += " Send '{}' to end this session.".format(SESSION_END_TRIGGER)
                 send_message(
                     recipients,
                     virtual_tn.value,
-                    SESSION_START_MSG,
+                    msg,
                     session.id,
                     is_system_msg=True)
+            msg = "Session {} started with participants {} and {}".format(
+                session.id,
+                participant_a,
+                participant_b)
+            log.info({"message": msg})
             return Response(
                 json.dumps(
                     {"message": "created session",
                      "session_id": session.id,
                      "expiry_date": expiry_date,
-                     "virtual_tn": virtual_tn.value}),
+                     "virtual_tn": virtual_tn.value,
+                     "participant_a": participant_a,
+                     "participant_b": participant_b}),
                 content_type="application/json")
     if request.method == 'GET':
         sessions = Sessions.query.all()
@@ -390,6 +402,13 @@ def inbound_handler():
         log.info({"message": msg})
     rcv_participant, session_id = get_other_participant(virtual_tn, tx_participant)
     if rcv_participant is not None:
+        # See if the participant sent to trigger to end the session
+        if SESSION_END_TRIGGER and message == SESSION_END_TRIGGER:
+            end_session(session_id)
+            return Response(
+                json.dumps({"message": "successfully ended session '{}'".format(
+                    session_id)}),
+                content_type="application/json")
         recipients = [rcv_participant]
         send_message(
             recipients,
@@ -401,6 +420,8 @@ def inbound_handler():
             json.dumps({"message": "successfully proxied message to '{}' for session {}".format(
                 rcv_participant, session_id)}),
             content_type="application/json")
+    msg = ("Session not found, or {} is not authorized to participate".format(tx_participant))
+    log.info({"message": msg})
     return Response(
         json.dumps({"message": "Session not found, or {} is not authorized to participate".format(tx_participant)}),
         content_type="application/json")
