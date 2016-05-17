@@ -1,3 +1,4 @@
+import os
 import uuid
 import simplejson as json
 from datetime import datetime, timedelta
@@ -11,12 +12,13 @@ from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
 from settings import (COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG,
-                      SEND_START_MSG, SEND_END_MSG, SESSION_END_TRIGGER,
-                      DEBUG_MODE, TEST_DB, DB)
+                      SEND_START_MSG, SEND_END_MSG, NO_SESSION_MSG,
+                      SESSION_END_TRIGGER, DEBUG_MODE, TEST_DB, DB)
 
-from credentials import (FLOWROUTE_ACCESS_KEY, FLOWROUTE_SECRET_KEY)
 from log import log
 
+FLOWROUTE_SECRET_KEY = os.environ['FLOWROUTE_SECRET_KEY']
+FLOWROUTE_ACCESS_KEY = os.environ['FLOWROUTE_ACCESS_KEY']
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -421,7 +423,7 @@ def inbound_handler():
                 rcv_participant, session_id)}),
             content_type="application/json")
     recipients = [tx_participant]
-    message = "An active session was not found.  Please contact support."
+    message = NO_SESSION_MSG
     send_message(
         recipients,
         virtual_tn,

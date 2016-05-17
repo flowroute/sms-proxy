@@ -4,9 +4,10 @@ DEBUG_MODE = True
 
 LOG_LEVEL = int(os.environ.get('LOG_LEVEL', 20))
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-COMPANY_NAME = "Flowroute"
+COMPANY_NAME = os.environ.get('COMPANY_NAME', 'Flowroute')
 SESSION_START_MSG = "Session started, send a message!"
 SESSION_END_MSG = "This session has ended, see you again soon!"
+NO_SESSION_MSG = "An active session was not found. Please contact support@flowroute.com"
 SEND_START_MSG = True
 SEND_END_MSG = True
 SESSION_END_TRIGGER = "*END*"
