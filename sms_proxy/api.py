@@ -11,8 +11,8 @@ from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
 from settings import (COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG,
-    SEND_START_MSG, SEND_END_MSG, SESSION_END_TRIGGER,
-    DEBUG_MODE, TEST_DB, DB)
+                      SEND_START_MSG, SEND_END_MSG, SESSION_END_TRIGGER,
+                      DEBUG_MODE, TEST_DB, DB)
 
 from credentials import (FLOWROUTE_ACCESS_KEY, FLOWROUTE_SECRET_KEY)
 from log import log
@@ -72,7 +72,7 @@ class Sessions(db.Model):
     expiry_date = db.Column(db.DateTime, nullable=True)
 
     def __init__(self, virtual_TN, participant_A, participant_B, expiry_window=None):
-        self.id = str(uuid.uuid4())
+        self.id = uuid.uuid4().hex
         self.date_created = datetime.utcnow()
         self.virtual_TN = virtual_TN
         self.participant_a = participant_A
@@ -179,14 +179,14 @@ def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
 
 def get_other_participant(virtual_tn, sender):
     """
-    Returns the 2nd particpant and session when given the virtual TN and the first 
-    participant
+    Returns the 2nd particpant and session when given the virtual TN
+    and the first participant
     """
     session = None
     try:
         session = Sessions.query.filter_by(virtual_TN=virtual_tn).one()
     except NoResultFound:
-            msg = ("A session with virtual TN ({})"
+            msg = ("A session with virtual TN '{}'"
                    " could not be found").format(virtual_tn)
             log.info({"message": msg})
             return None, None
@@ -417,9 +417,18 @@ def inbound_handler():
             session_id
         )
         return Response(
-            json.dumps({"message": "successfully proxied message to '{}' for session {}".format(
+            json.dumps({"message": "successfully proxied message to '{}' for session '{}'".format(
                 rcv_participant, session_id)}),
             content_type="application/json")
+    recipients = [tx_participant]
+    message = "An active session was not found.  Please contact support."
+    send_message(
+        recipients,
+        virtual_tn,
+        message,
+        None,
+        is_system_msg=True,
+    )
     msg = ("Session not found, or {} is not authorized to participate".format(tx_participant))
     log.info({"message": msg})
     return Response(
