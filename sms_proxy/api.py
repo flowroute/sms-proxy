@@ -234,8 +234,8 @@ def viritual_tn():
                          'duplicate virtual TN'})
         return Response(
             json.dumps(
-                {"message": "successfully added {} to pool".format(
-                    value)}),
+                {"message": "successfully added TN to pool",
+                 "value": value}),
             content_type="application/json")
     # Retrieve all virtual TNs from pool
     if request.method == 'GET':
@@ -272,8 +272,8 @@ def viritual_tn():
         db.session.delete(virtual_tn)
         db.session.commit()
         return Response(
-            json.dumps({"message": "successfully removed {} from pool".format(
-                value)}),
+            json.dumps({"message": "successfully removed TN from pool",
+                        "value": value}),
             content_type="application/json")
 
 
@@ -384,8 +384,8 @@ def proxy_session():
                          'Session not found'})
         end_session(session_id)
         return Response(
-            json.dumps({"message": "successfully ended session '{}'".format(
-                session_id)}),
+            json.dumps({"message": "successfully ended session",
+                        "session_id": session_id}),
             content_type="application/json")
 
 
@@ -408,8 +408,8 @@ def inbound_handler():
         if SESSION_END_TRIGGER and message == SESSION_END_TRIGGER:
             end_session(session_id)
             return Response(
-                json.dumps({"message": "successfully ended session '{}'".format(
-                    session_id)}),
+                json.dumps({"message": "successfully ended session",
+                            "session_id": session_id}),
                 content_type="application/json")
         recipients = [rcv_participant]
         send_message(
@@ -419,8 +419,10 @@ def inbound_handler():
             session_id
         )
         return Response(
-            json.dumps({"message": "successfully proxied message to '{}' for session '{}'".format(
-                rcv_participant, session_id)}),
+            json.dumps({"message": "successfully proxied message",
+                        "session_id": session_id,
+                        "from": tx_participant,
+                        "to": rcv_participant}),
             content_type="application/json")
     recipients = [tx_participant]
     message = NO_SESSION_MSG
@@ -435,7 +437,8 @@ def inbound_handler():
     log.info({"message": msg})
     return Response(
         json.dumps({"message": "Session not found, or {} is not authorized to participate".format(tx_participant)}),
-        content_type="application/json")
+        content_type="application/json",
+        status=404)
 
 
 if __name__ == "__main__":
