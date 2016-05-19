@@ -1,16 +1,16 @@
 import os
 
 DEBUG_MODE = True
-
-LOG_LEVEL = int(os.environ.get('LOG_LEVEL', 20))
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-COMPANY_NAME = os.environ.get('COMPANY_NAME', 'Flowroute')
-SESSION_START_MSG = "Session started, send a message!"
-SESSION_END_MSG = "This session has ended, see you again soon!"
+LOG_LEVEL = int(os.environ.get('LOG_LEVEL', 20))
+
+FLOWROUTE_SECRET_KEY = os.environ.get('FLOWROUTE_SECRET_KEY', None)
+FLOWROUTE_ACCESS_KEY = os.environ.get('FLOWROUTE_ACCESS_KEY', None)
+
+ORG_NAME = os.environ.get('ORG_NAME', 'Your Org Name')
+SESSION_START_MSG = "Your new session has started, send a message!"
+SESSION_END_MSG = "This session has ended, talk to you again soon!"
 NO_SESSION_MSG = "An active session was not found. Please contact support@flowroute.com"
-SEND_START_MSG = True
-SEND_END_MSG = True
-SESSION_END_TRIGGER = "*END*"
 
 TEST_DB = "test_sms_proxy.db"
 DB = "sms_proxy.db"

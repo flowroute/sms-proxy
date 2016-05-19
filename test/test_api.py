@@ -3,13 +3,14 @@ import json
 import urllib
 import uuid
 
-from sms_proxy.api import app, db, get_available_virtual_tn, VirtualTN, Sessions
+from sms_proxy.api import app, VirtualTN, Session
+from sms_proxy.database import db_session, init_db, destroy_db, engine
 from sms_proxy.settings import TEST_DB
 
 
 def teardown_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
-        db.drop_all()
+        destroy_db()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
@@ -17,11 +18,11 @@ def teardown_module(module):
 
 def setup_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
-        db.drop_all()
+        destroy_db()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
-    db.create_all()
+    init_db()
 
 
 class MockController():
@@ -42,12 +43,8 @@ def test_get_available_virtual_tn(session_id, value, expected_value):
     virtual_tn = VirtualTN(value)
     if session_id:
         virtual_tn.session_id = session_id
-    db.session.add(virtual_tn)
-    db.session.commit()
-    available_tn = get_available_virtual_tn()
+    db_session.add(virtual_tn)
+    db_session.commit()
+    available_tn = VirtualTN.get_available()
     available_value = available_tn.value if available_tn else None
     assert available_value == expected_value
-
-
-def test_clean_expired_sessions():
-    
