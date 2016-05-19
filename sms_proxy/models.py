@@ -18,7 +18,7 @@ class VirtualTN(Base):
         The session_id, if any, for which this virtual TN is assigned to.
     """
     @classmethod
-    def get_available(cls):
+    def get_next_available(cls):
         """
         Returns a virtual TN that does not already have a session attached
         to it, otherwise returns None

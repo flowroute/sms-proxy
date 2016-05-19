@@ -170,10 +170,10 @@ def proxy_session():
         # We'll take this time to clear out any expired sessions and release
         # TNs back to the pool if possible
         Session.clean_expired()
-        virtual_tn = VirtualTN.get_available()
+        virtual_tn = VirtualTN.get_next_available()
         if virtual_tn is None:
             msg = "Could not create session -- No virtual TNs available"
-            log.info({"message": msg})
+            log.critical({"message": msg})
             return Response(
                 json.dumps(
                     {"message": msg}),
