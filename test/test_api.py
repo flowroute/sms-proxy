@@ -3,7 +3,7 @@ import json
 import urllib
 import uuid
 
-from sms_proxy.api import app, db, get_available_virtual_tn, VirtualTN, Sessions
+from sms_proxy.api import app, db, get_available_virtual_tn, VirtualTN, Session
 from sms_proxy.settings import TEST_DB
 
 
@@ -47,7 +47,3 @@ def test_get_available_virtual_tn(session_id, value, expected_value):
     available_tn = get_available_virtual_tn()
     available_value = available_tn.value if available_tn else None
     assert available_value == expected_value
-
-
-def test_clean_expired_sessions():
-    
