@@ -5,6 +5,6 @@ setup(name='sms_proxy',
       description='An SMS proxy microservice',
       packages=['sms_proxy'],
       author='Flowroute Developers',
-      url='https://github.com/flowroute/two_factor_auth_python_demo',
+      url='https://github.com/flowroute',
       author_email='developer@flowroute.com',
       )

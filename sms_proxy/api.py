@@ -4,25 +4,24 @@ import simplejson as json
 from datetime import datetime, timedelta
 
 from flask import Flask, request, Response
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
-from sms_proxy.settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
+from settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
                       COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG,
                       SEND_START_MSG, SEND_END_MSG, NO_SESSION_MSG,
                       SESSION_END_TRIGGER, DEBUG_MODE, TEST_DB, DB)
-from sms_proxy.database import db_session
-from sms_proxy.log import log
-from sms_proxy.models import VirtualTN, Session,
-
+from database import db_session, init_db
+from log import log
+from models import VirtualTN, Session
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+init_db()
 
 sms_controller = APIController(username=FLOWROUTE_ACCESS_KEY,
                                password=FLOWROUTE_SECRET_KEY)
@@ -174,8 +173,8 @@ def proxy_session():
             expiry_window = None
         # We'll take this time to clear out any expired sessions and release
         # TNs back to the pool if possible
-        clean_expired_sessions()
-        virtual_tn = get_available_virtual_tn()
+        Session.clean_expired_sessions()
+        virtual_tn = VirtualTN.get_available_tns()
         if virtual_tn is None:
             msg = "Could not create session -- No virtual TNs available"
             log.info({"message": msg})
@@ -258,7 +257,7 @@ def proxy_session():
                 status_code=404,
                 payload={'reason':
                          'Session not found'})
-        participent_a, participent_b = end_session(session_id)
+        participent_a, participent_b = Session.end_session(session_id)
         if SEND_END_MSG:
             recipients = [participant_a, participant_b]
             send_message(
@@ -283,7 +282,7 @@ def inbound_handler():
     # We'll take this time to clear out any expired sessions and release
     # TNs back to the pool if possible
     # TODO we could fire off a thread here.
-    clean_expired_sessions()
+    Session.clean_expired_sessions()
     body = request.json
     try:
         virtual_tn = body['to']
@@ -292,12 +291,13 @@ def inbound_handler():
     except (KeyError):
         msg = ("Malformed inbound message: {}".format(body))
         log.info({"message": msg})
-    rcv_participant, session_id = get_other_participant(virtual_tn,
-                                                        tx_participant)
+    rcv_participant, session_id = Session.get_other_participant(
+        virtual_tn,
+        tx_participant)
     if rcv_participant is not None:
         # See if the participant sent to trigger to end the session
         if SESSION_END_TRIGGER and message == SESSION_END_TRIGGER:
-            end_session(session_id)
+            Session.end_session(session_id)
             return Response(
                 json.dumps({"message": "successfully ended session",
                             "session_id": session_id}),
@@ -336,8 +336,5 @@ def inbound_handler():
         content_type="application/json",
         status=404)
 
-
 if __name__ == "__main__":
-    from sms_proxy.database import init_db
-    init_db()
     app.run('0.0.0.0', 8000)

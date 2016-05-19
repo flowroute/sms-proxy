@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm.exc import NoResultFound
 
-from sms_proxy.database import Base, db_session
-from sms_proxy.log import log
+from database import Base, db_session
+from log import log
 
 
 class VirtualTN(Base):
@@ -18,42 +18,17 @@ class VirtualTN(Base):
         The session_id, if any, for which this virtual TN is assigned to.
     """
 
-    def get_available_virtual_tn(cls):
+    def get_available_tns(cls):
         """
         Returns a virtual TN that does not already have a session attached
         to it, otherwise returns None
         """
         try:
-            return VirtualTN.query.filter_by(session_id=None).first()
+            return cls.query.filter_by(session_id=None).first()
         except NoResultFound:
             return None
 
-    def get_other_participant(virtual_tn, sender):
-        """
-        Returns the 2nd particpant and session when given the virtual TN
-        and the first participant
-        """
-        session = None
-        try:
-            session = Session.query.filter_by(virtual_TN=virtual_tn).one()
-        except NoResultFound:
-                msg = ("A session with virtual TN '{}'"
-                       " could not be found").format(virtual_tn)
-                log.info({"message": msg})
-                return None, None
-        if session:
-            participant_a = session.participant_a
-            participant_b = session.participant_b
-            if participant_a == sender:
-                return participant_b, session.id
-            elif participant_b == sender:
-                return participant_a, session.id
-            else:
-                msg = ("{} is not a participant of session {}").format(
-                    sender,
-                    session.id)
-                log.info({"message": msg})
-                return None, None
+    __tablename__ = 'virtual_tn'
     id = Column(Integer)
     value = Column(String(18), primary_key=True)
     session_id = Column(String(40))
@@ -108,6 +83,35 @@ class Session(Base):
         db_session.commit()
         return participant_a, participant_b
 
+    def get_other_participant(cls, virtual_tn, sender):
+        """
+        Returns the 2nd particpant and session when given the virtual TN
+        and the first participant
+        """
+        session = None
+        try:
+            session = Session.query.filter_by(virtual_TN=virtual_tn).one()
+        except NoResultFound:
+                msg = ("A session with virtual TN '{}'"
+                       " could not be found").format(virtual_tn)
+                log.info({"message": msg})
+                return None, None
+        if session:
+            participant_a = session.participant_a
+            participant_b = session.participant_b
+            if participant_a == sender:
+                return participant_b, session.id
+            elif participant_b == sender:
+                return participant_a, session.id
+            else:
+                msg = ("{} is not a participant of session {}").format(
+                    sender,
+                    session.id)
+                log.info({"message": msg})
+                return None, None
+
+
+    __tablename__ = 'session'
     id = Column(String(40), primary_key=True)
     date_created = Column(DateTime)
     virtual_TN = Column(String(18))
