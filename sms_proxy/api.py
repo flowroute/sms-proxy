@@ -170,8 +170,8 @@ def proxy_session():
             expiry_window = None
         # We'll take this time to clear out any expired sessions and release
         # TNs back to the pool if possible
-        Session.clean_expired_sessions()
-        virtual_tn = VirtualTN.get_available_tns()
+        Session.clean_expired()
+        virtual_tn = VirtualTN.get_available()
         if virtual_tn is None:
             msg = "Could not create session -- No virtual TNs available"
             log.info({"message": msg})
@@ -254,7 +254,7 @@ def proxy_session():
                 status_code=404,
                 payload={'reason':
                          'Session not found'})
-        participent_a, participent_b = Session.end_session(session_id)
+        participent_a, participent_b = Session.terminate(session_id)
         if SEND_END_MSG:
             recipients = [participant_a, participant_b]
             send_message(
@@ -279,13 +279,15 @@ def inbound_handler():
     # We'll take this time to clear out any expired sessions and release
     # TNs back to the pool if possible
     # TODO we could fire off a thread here.
-    Session.clean_expired_sessions()
+    Session.clean_expired()
     body = request.json
     try:
         virtual_tn = body['to']
+        int(body['to'])
         tx_participant = body['from']
+        int(body['from'])
         message = body['body']
-    except (KeyError):
+    except (KeyError, ValueError):
         msg = ("Malformed inbound message: {}".format(body))
         log.info({"message": msg})
     rcv_participant, session_id = Session.get_other_participant(
@@ -294,7 +296,7 @@ def inbound_handler():
     if rcv_participant is not None:
         # See if the participant sent to trigger to end the session
         if SESSION_END_TRIGGER and message == SESSION_END_TRIGGER:
-            Session.end_session(session_id)
+            Session.terminate(session_id)
             return Response(
                 json.dumps({"message": "successfully ended session",
                             "session_id": session_id}),

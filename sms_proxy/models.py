@@ -17,8 +17,8 @@ class VirtualTN(Base):
     session_id (str):
         The session_id, if any, for which this virtual TN is assigned to.
     """
-
-    def get_available_tns(cls):
+    @classmethod
+    def get_available(cls):
         """
         Returns a virtual TN that does not already have a session attached
         to it, otherwise returns None
@@ -55,7 +55,8 @@ class Session(Base):
         minutes, is not provided when creating the session, the
         DEFAULT_EXPIRATION in settings is used
     """
-    def clean_expired_sessions(cls):
+    @classmethod
+    def clean_expired(cls):
         """
         Removes sessions that have an expiry date in the past and releases
         the corresponding virtual TN back to the pool
@@ -67,13 +68,14 @@ class Session(Base):
         except NoResultFound:
             return
         for session in expired_sessions:
-            cls.end_session(session.id)
+            cls.terminate(session.id)
 
-    def end_session(cls, session_id):
+    @classmethod
+    def terminate(cls, session_id):
         """
         Ends a given session, and releases the virtual TN back into the pool
         """
-        session = Session.query.filter_by(id=session_id).one()
+        session = cls.query.filter_by(id=session_id).one()
         participant_a = session.participant_a
         participant_b = session.participant_b
         virtual_tn = VirtualTN.query.filter_by(session_id=session_id).one()
@@ -83,6 +85,7 @@ class Session(Base):
         db_session.commit()
         return participant_a, participant_b
 
+    @classmethod
     def get_other_participant(cls, virtual_tn, sender):
         """
         Returns the 2nd particpant and session when given the virtual TN
@@ -109,7 +112,6 @@ class Session(Base):
                     session.id)
                 log.info({"message": msg})
                 return None, None
-
 
     __tablename__ = 'session'
     id = Column(String(40), primary_key=True)
