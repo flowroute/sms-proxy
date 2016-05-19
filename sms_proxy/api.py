@@ -9,8 +9,7 @@ from FlowrouteMessagingLib.Models.Message import Message
 
 from settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
                       ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
-                      SEND_START_MSG, SEND_END_MSG, NO_SESSION_MSG,
-                      SESSION_END_TRIGGER, DEBUG_MODE, TEST_DB, DB)
+                      NO_SESSION_MSG, DEBUG_MODE, TEST_DB, DB)
 from database import db_session, init_db
 from log import log
 from models import VirtualTN, Session
