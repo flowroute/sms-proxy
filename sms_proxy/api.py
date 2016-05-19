@@ -9,8 +9,7 @@ from FlowrouteMessagingLib.Models.Message import Message
 
 from settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
                       ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
-                      SEND_START_MSG, SEND_END_MSG, NO_SESSION_MSG,
-                      SESSION_END_TRIGGER, DEBUG_MODE, TEST_DB, DB)
+                      NO_SESSION_MSG, DEBUG_MODE, TEST_DB, DB)
 from database import db_session, init_db
 from log import log
 from models import VirtualTN, Session
@@ -171,10 +170,10 @@ def proxy_session():
         # We'll take this time to clear out any expired sessions and release
         # TNs back to the pool if possible
         Session.clean_expired()
-        virtual_tn = VirtualTN.get_available()
+        virtual_tn = VirtualTN.get_next_available()
         if virtual_tn is None:
             msg = "Could not create session -- No virtual TNs available"
-            log.info({"message": msg})
+            log.critical({"message": msg})
             return Response(
                 json.dumps(
                     {"message": msg}),
