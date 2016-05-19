@@ -2,34 +2,50 @@
 
 SMS Proxy is a microservice that allows you to proxy SMS messages between two recipients using a Flowroute TN as the intermediary layer.  The two participants of a session both send SMS messages to the same TN and are able to receive those messages on their own devices, never exposing either recipients true phone number.  
 
-The service uses a SQLite backend and exposes multiple API endpoints which allows for interaction with the microservice using three standard HTTP API methods: **POST**, **GET**, and **DELETE**.
+The service uses a SQLite backend and exposes multiple API resources which allows for interaction with the microservice using three standard HTTP API methods: **POST**, **GET**, and **DELETE**.
 
-## / Endpoint
+## (/) resource
 * **POST** handles the incoming messages received from Flowroute.  This is the endpoint that you would set your callback URL to in your Flowroute API settings in Flowroute Manager.
 
-## /tn Endpoint
+## (/tn) resource
 * **POST** adds a TN to your pool of virtual TNs.  
-$ curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn
+```$ curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn```
 
+	**Sample Response**
+
+	```{"message": "successfully added TN to pool", "value": "1NPANXXXXXXX"}```
 
 * **GET** retrieves your entire virtual TN pool.  
-$ curl -H "Content-Type: application/json" -X GET https://yourdomain.com/tn
+```$ curl -H "Content-Type: application/json" -X GET https://yourdomain.com/tn```
 
+	**Sample Response**
+	
+	```{"available": 0, "virtual_tns": [{"session_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "value": "1NPANXXXXXX"}], "in_use": 1, "pool_size": 1}```
 
 * **DELETE** removes a TN from your pool of virtual TNs.  
-$ curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn
+```$ curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn```
 
+	**Sample Response**
 
-## /session Endpoint
-* **POST** starts a new session between participant_a and participant_b.  Optional: expiry window, given in minutes of when a session should auto-expire.  If this option is not provided, the session will not end until a request using the DELETE method is sent.  
-$ curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session
+	```{"message": "successfully removed TN from pool", "value": "1NPANXXXXXXX"}```
+
+## (/session) resource
+* **POST** starts a new session between **participant\_a** and **participant\_b**.  Optional: expiry window, given in minutes of when a session should auto-expire.  If this option is not provided, the session will not end until a request using the DELETE method is sent.  
+```$ curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session```
+
+	**Sample Response**
+
+	```{"virtual_tn": "1NPANXXXXXX", "session_id": "366910827c8e4a6593943a28e4931668", "expiry_date": "2016-05-19 22:19:58", "participant_b": "12065551213", "message": "created session", "participant_a": "12065551212"}```
 
 * **GET**  lists all in-progress sessions.  
-$ curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session
+```$ curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session```
 
+	**Sample Response**
+
+	```{"total_sessions": 1, "sessions": [{"virtual_tn": "1NPANXXXXXX", "expiry_date": "2016-05-19 22:19:58", "participant_b": "12065551212", "date_created": "2016-05-19 22:09:58", "participant_a": "12065551213", "id": "366910827c8e4a6593943a28e4931668"}]}```
 
 * **DELETE** ends the specified session.  
-$ curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"08f92243b3394e1f935c2f558d3effec"}' https://yourdomain.com/session
+$ curl -H "Content-Type: application/json" -X DELETE -d ```'{"session_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}' https://yourdomain.com/session```
 
 
 ## Before you deploy SMS Proxy
