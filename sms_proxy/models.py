@@ -83,7 +83,7 @@ class Session(Base):
         db_session.commit()
         db_session.delete(session)
         db_session.commit()
-        return participant_a, participant_b
+        return participant_a, participant_b, virtual_tn
 
     @classmethod
     def get_other_participant(cls, virtual_tn, sender):
