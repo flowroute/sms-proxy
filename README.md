@@ -47,6 +47,10 @@ The service uses a SQLite backend and exposes multiple API resources which allow
 * **DELETE** ends the specified session.  
 $ curl -H "Content-Type: application/json" -X DELETE -d ```'{"session_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}' https://yourdomain.com/session```
 
+	**Sample Response**
+
+	```{"message": "successfully ended session", "session_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}```
+
 
 ## Before you deploy SMS Proxy
 
@@ -140,11 +144,11 @@ With the service now deployed, configure authorization settings by customizing**
 
     ###### settings.py parameters
 
-    | Variable |  Data type   |Constraint                                                                                   |
+    | Variable |  Data type   |Description                                                                                   |
     |-----------|----------|----------|------------------------------|
     |`ORG_NAME`| String    | Sets your organization's name for use in system-generated SMS messages| 
-    |`SESSION_START_MSG`| String| The message that is sent when to both participants when their session has been created|
-    |`SESSION_END_MSG`|String| The message that is sent when to both participants when their session has been ended |
+    |`SESSION_START_MSG`| String| The message that is sent to both participants when their session has been created|
+    |`SESSION_END_MSG`|String| The message that is sent to both participants when their session has been ended |
     |`NO_SESSION_MSG`|String|The message that is sent to a user who sends a message to a virtual TN that 1) is assigned to a session to which the user does not belong or 2) is not assigned to any active session.|
 
 3. Save the file.
@@ -161,69 +165,50 @@ In a test environment, invoke the `docker run` command with the `test` argument 
 
     A `py.test` command is invoked from within the container. When running `coverage`, a cov-report directory is created that contains an **index.html** file detailing test coverage results.
 
-## Send and validate an authorization code
+## Add virtual TNs and start a session
 
-Once the application is up-and-running, the authorization resources can now be invoked with their respective request types.
+Once the application is up-and-running, you can begin adding one or more virtual TNs and creating sessions.
 
-### Send the code (POST)
+### Add a virtual TN (POST)
 
-Generate and send the code. You can:
+Add a virtual TN to your pool. You can:
 
 * use a curl **POST** command:
 
-        curl -v -X POST -d '{"auth_id": "my_identifier", "recipient": "my_phone_number"}' -H "Content-Type: application/json" localhost:8000
+        ```$ curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn```
 
     | Key: Argument | Required | Constraint |
     |-----------|----------|---------------------------------------------------------------|
-|`auth_id: Identifier`|Yes|The `my_identifier` is any user-defined string, limited to 120 characters. For example, this could be a UUID.
-|`recipient: my_phone number`|Yes|`my_phone_number` is the phone number identifying the recipient using an 11-digit, number formatted as *1XXXXXXXXXX*. Validation is performed to ensure the phone number meets the formatting requirement, but no validation is performed to determine whether or not the phone number itself is valid. |
+|`value: virtual_tn`|Yes|`virtual_tn`is the telephone number that is used during a session.  Participants send and receive their messages from this TN when it is in use during a session.  Virtual TNs must be phone numbers that you have purchased from Flowroute.  |
 
     >**Important:** When using the **POST** method with JSON you must also include the complete `Content-Type:application/json" localhost:8000` header.
 
-* use the client class stored in **client.py**: 
+### Start a session (POST)
 
-        from client import SMSAuthClient 
-        my_client = SMSAuthClient(endpoint="localhost:8000")
-        my_client.create_auth("my_identifier", "my_phone_number")
+* use a curl **POST** command:
 
-A code is auto-generated based on the modifications made to **settings.py** and sent to the intended recipient. The recipient then receives the message and code at the number passed in the POST method.
+	```$ curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session```
 
-### Validate the authorization code (GET)
-
-* Run the following:
-
-        url -X GET "http://localhost:8000?auth_id=my_identifier&code=1234"
-
-    In this example,
-    *   `my_identifier` is the `auth_id` from the **POST** request.
-
-    *   `1234` is the value passed through from user input.
-
-    >**Important!** URL encoding is required for the **GET** request.
+    | Key: Argument | Required | Constraint |
+    |-----------|----------|---------------------------------------------------------------|
+|`participant_a: phone_number`|Yes|`participant_a` is a 11 digit telephone number (1NPANXXXXXX) of the first participant in a session  |
+|`participant_b: phone_number`|Yes|`participant_b` is a 11 digit telephone number (1NPANXXXXXX) of the second participant in a session  |
+|`expiry_window: integer`|No|`expiry_window` is the number of minutes the session should be active.  Any messages received after this window will cause the session to be ended.  Participants will receive a system-generated SMS message indicating that the session has ended.  Subsequent messages will trigger the `NO_SESSION_MSG` from settings.py. |
                 
 The following then occurs:
 
-1.  The `auth_id` is validated. If the authorization ID is not recognized, a **400** status code is returned.
+1.  A virtual TN is selected at random from the pool.  If no virtual TNs are available, `{"message": "Could not create session -- No virtual TNs available"}` is sent returned.
 
-2.  The code is checked against the expiration time. If the code has expired, the entry is deleted, and no attempts for that `auth_id` will be recognized. A **400** status code is returned.
+2.  A session is created between the two participants using an available virtual TN from the pool.  
 
-3.  If the code has not expired, but the attempt does not match the stored code, retries based on the `RETRIES_ALLOWED` number set in **settings.py** begin.
-    * If the code matches the stored code, a **200** success message is returned, and the entry is removed from the database.
-    * If the number of retries is reached without success, no more retries are allowed, and the entry is removed from the database.
+3.  The proxy will relay messages sent to the virtual TN for the number of minutes specified in `expiry_window` if set, otherwise the session will persist indefinitely (until the session is ended via a `DELETE`request against the session endpoint.
+	
+	3a. To end a session:
+	```$ curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}' https://yourdomain.com/session```
 
-    >**Note:** Because they are no longer needed, validated and failed authorization entries are removed  in order to keep database size down.
-
-#### Success response
-
-A valid authorization code returns a **200** status code and success message.
-
-#### Error response
-
-The following describe the possible error status codes:
-
-*  a **400** status code for invalid attempts, if the code has expired, or if the `auth_id` is not recognized. The number of retry attempts remaining is stored in the response data, along with the reason for the failure and the exception type.
-*  a **500** status code for an internal error, or if a phone number is not reachable on the network.
-
+    | Key: Argument | Required | Constraint |
+    |-----------|----------|---------------------------------------------------------------|
+|`session_id: string`|Yes|`session_id` is a 32 character session identifier  |
 
 ## Contributing
 1. Fork it!
