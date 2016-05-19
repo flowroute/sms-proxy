@@ -4,18 +4,28 @@ SMS Proxy is a microservice that allows you to proxy SMS messages between two re
 
 The service uses a SQLite backend and exposes multiple API endpoints which allows for interaction with the microservice using three standard HTTP API methods: **POST**, **GET**, and **DELETE**.
 
-* /
+## / Endpoint
 * **POST** handles the incoming messages received from Flowroute.  This is the endpoint that you would set your callback URL to in your Flowroute API settings in Flowroute Manager.
 
-* /tn
-* **POST** adds a TN to your pool of virtual TNs.  `curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn`
-* **GET** retrieves your entire virtual TN pool.  `curl -H "Content-Type: application/json" -X GET https://yourdomain.com/tn`
-* **DELETE** removes a TN from your pool of virtual TNs.  `curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn`
+## /tn Endpoint
+* **POST** adds a TN to your pool of virtual TNs.  
+`curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn`
 
-* /session
-* **POST** starts a new session between participant_a and participant_b.  Optional: expiry window, given in minutes of when a session should auto-expire.  If this option is not provided, the session will not end until a request using the DELETE method is sent.  `curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session`
-* **GET**  lists all in-progress sessions.  `curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session`
-* **DELETE** ends the specified session.  `curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"08f92243b3394e1f935c2f558d3effec"}' https://yourdomain.com/session`
+* **GET** retrieves your entire virtual TN pool.  
+`curl -H "Content-Type: application/json" -X GET https://yourdomain.com/tn`
+
+* **DELETE** removes a TN from your pool of virtual TNs.  
+`curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn`
+
+## /session Endpoint
+* **POST** starts a new session between participant_a and participant_b.  Optional: expiry window, given in minutes of when a session should auto-expire.  If this option is not provided, the session will not end until a request using the DELETE method is sent.  
+`curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session`
+
+* **GET**  lists all in-progress sessions.  
+`curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session`
+
+* **DELETE** ends the specified session.  
+`curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"08f92243b3394e1f935c2f558d3effec"}' https://yourdomain.com/session`
 
 ## Before you deploy SMS Proxy
 
