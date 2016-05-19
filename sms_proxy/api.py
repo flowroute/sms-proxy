@@ -248,7 +248,7 @@ def proxy_session():
                 status_code=404,
                 payload={'reason':
                          'Session not found'})
-        participent_a, participent_b = Session.terminate(session_id)
+        participant_a, participant_b = Session.terminate(session_id)
         recipients = [participant_a, participant_b]
         send_message(
             recipients,
