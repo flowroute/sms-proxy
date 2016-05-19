@@ -9,23 +9,28 @@ The service uses a SQLite backend and exposes multiple API endpoints which allow
 
 ## /tn Endpoint
 * **POST** adds a TN to your pool of virtual TNs.  
-`curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn`
+$curl -H "Content-Type: application/json" -X POST -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn
+
 
 * **GET** retrieves your entire virtual TN pool.  
-`curl -H "Content-Type: application/json" -X GET https://yourdomain.com/tn`
+$curl -H "Content-Type: application/json" -X GET https://yourdomain.com/tn
+
 
 * **DELETE** removes a TN from your pool of virtual TNs.  
-`curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn`
+$curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn
+
 
 ## /session Endpoint
 * **POST** starts a new session between participant_a and participant_b.  Optional: expiry window, given in minutes of when a session should auto-expire.  If this option is not provided, the session will not end until a request using the DELETE method is sent.  
-`curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session`
+$curl -H "Content-Type: application/json" -X POST -d '{"participant_a":"1NPANXXXXX1", "participant_b":"1NPANXXXXX2", "expiry_window": 10}' https://yourdomain.com/session
 
 * **GET**  lists all in-progress sessions.  
-`curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session`
+$curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session
+
 
 * **DELETE** ends the specified session.  
-`curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"08f92243b3394e1f935c2f558d3effec"}' https://yourdomain.com/session`
+$curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"08f92243b3394e1f935c2f558d3effec"}' https://yourdomain.com/session
+
 
 ## Before you deploy SMS Proxy
 
@@ -98,47 +103,35 @@ Deploying the service can be done by either building and running a Docker contai
 >**Note:** See the <a href="http://flask.pocoo.org/" target="_blank">Flask</a> documentation for more information about the web framework.
 
 
-## Configure SMS Identity Authorization
+## Configure SMS Proxy
 
-With the service now deployed, configure authorization settings by either customizing and running **settings.py** or by running **client.py**.
+With the service now deployed, configure authorization settings by customizing**settings.py**
 
 ### settings.py
 
-**settings.py** allows you to customize the authorization code, including the code length, expiration time, number of retries, company name, and message. 
+**settings.py** allows you to customize your organization's name and special messages around sessions.
 
-##### To configure the authorization settings:
+##### To configure the settings:
 
-1. In the **sms\_auth_service** directory, open **settings.py**.
+1. In the **sms\_proxy_service** directory, open **settings.py**.
 
 2. Modify any of the following values as needed:
 
-        CODE_LENGTH = 4
-        CODE_EXPIRATION = 3600  # 1 Hour expiration
-        RETRIES_ALLOWED = 3
-        ORG_NAME="Your Organization Name"
-        AUTH_MESSAGE=("{{}}\n"  # Placeholder for authorization code.
-                "Welcome to {}! Use this one-time code to "
-                "complete your signup.").format(ORG_NAME)
+        ORG_NAME = os.environ.get('ORG_NAME', 'Your Org Name')
+        SESSION_START_MSG = "Your new session has started, send a message!"
+        SESSION_END_MSG = "This session has ended, talk to you again soon!"
+        NO_SESSION_MSG = "An active session was not found. Please contact support@flowroute.com"
 
     ###### settings.py parameters
 
     | Variable |  Data type   |Constraint                                                                                   |
     |-----------|----------|----------|------------------------------|
-    |`CODE_LENGTH`| INT    | Sets the length of the generated authorization code. There is neither a minimum nor maximum number of allowed digits. The default length is `4` (four) digits.| 
-    |`CODE_EXPIRATION`| INT| The length of time, in seconds and including retries, before the authorization code expires. There is no limit on the time. The default value is `3600` seconds (one hour).
-    |`RETRIES_ALLOWED`|INT| The number of retries allowed before the code is invalid. There is no limit on the number of retries you can set. The default retry is `3` times. |
-    |`ORG_NAME`|String|The name you to display in the authorization message within the enclosing quotes (`""`). Alphanumeric characters are supported. There are no disallowed characters, and there is no limit on the number of characters. The default name is `Your Organization Name`.|
-    |`AUTH_MESSAGE`|String|The message sent with the code. There is no limit on the number of alphanumeric characters that can be used, and there are no disallowed characters. If the message exceeds 160 characters, however, it will be broken up into multiple messages. See <a href="https://developer.flowroute.com/docs/message-length-concatenation" target="_blank">Message Length & Concatenation</a> for more information on message length.|
+    |`ORG_NAME`| String    | Sets your organization's name for use in system-generated SMS messages| 
+    |`SESSION_START_MSG`| String| The message that is sent when to both participants when their session has been created|
+    |`SESSION_END_MSG`|String| The message that is sent when to both participants when their session has been ended |
+    |`NO_SESSION_MSG`|String|The message that is sent to a user who sends a message to a virtual TN that 1) is assigned to a session to which the user does not belong or 2) is not assigned to any active session.|
 
 3. Save the file.
-
-### client.py
-
-The SMSAuthClient can be imported from **client.py** and instantiated with the `SMS_AUTH_ENDPOINT` as it's only argument. The SMSAuthClient has two methods, `create_auth` and `authenticate_code`, which proxy to the service resource endpoints.  
-
-**client.py** reads the response and returns a success or error message as needed.
-
-The module is located within the **sms\_auth_service** Python package.
 
 ## Test it! 
     
@@ -148,7 +141,7 @@ In a test environment, invoke the `docker run` command with the `test` argument 
 
 *   Run the following:
 
-        $ docker run -p 8000:8000 sms_auth_api:0.0.1 test
+        $ docker run -p 8000:8000 sms_proxy:0.0.1 test
 
     A `py.test` command is invoked from within the container. When running `coverage`, a cov-report directory is created that contains an **index.html** file detailing test coverage results.
 
