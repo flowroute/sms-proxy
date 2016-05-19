@@ -8,7 +8,7 @@ from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
 from settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
-                      COMPANY_NAME, SESSION_START_MSG, SESSION_END_MSG,
+                      ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
                       SEND_START_MSG, SEND_END_MSG, NO_SESSION_MSG,
                       SESSION_END_TRIGGER, DEBUG_MODE, TEST_DB, DB)
 from database import db_session, init_db
@@ -29,7 +29,7 @@ app.sms_controller = sms_controller
 
 def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
     if is_system_msg:
-        msg = "[{}]: {}".format(COMPANY_NAME.upper(), msg)
+        msg = "[{}]: {}".format(ORG_NAME.upper(), msg)
     for recipient in recipients:
         message = Message(
             to=recipient,
@@ -191,18 +191,13 @@ def proxy_session():
             db_session.add(session)
             db_session.commit()
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
-            if SEND_START_MSG:
-                recipients = [participant_a, participant_b]
-                msg = SESSION_START_MSG
-                if SESSION_END_TRIGGER:
-                    msg += " Send '{}' to end this session.".format(
-                        SESSION_END_TRIGGER)
-                send_message(
-                    recipients,
-                    virtual_tn.value,
-                    msg,
-                    session.id,
-                    is_system_msg=True)
+            recipients = [participant_a, participant_b]
+            send_message(
+                recipients,
+                virtual_tn.value,
+                SESSION_START_MSG,
+                session.id,
+                is_system_msg=True)
             msg = "Session {} started with participants {} and {}".format(
                 session.id,
                 participant_a,
@@ -255,14 +250,13 @@ def proxy_session():
                 payload={'reason':
                          'Session not found'})
         participent_a, participent_b = Session.terminate(session_id)
-        if SEND_END_MSG:
-            recipients = [participant_a, participant_b]
-            send_message(
-                recipients,
-                virtual_tn.value,
-                SESSION_END_MSG,
-                session_id,
-                is_system_msg=True)
+        recipients = [participant_a, participant_b]
+        send_message(
+            recipients,
+            virtual_tn.value,
+            SESSION_END_MSG,
+            session_id,
+            is_system_msg=True)
         msg = "Ended session {} and released {} back to pool".format(
             session_id,
             virtual_tn.value)
@@ -294,13 +288,6 @@ def inbound_handler():
         virtual_tn,
         tx_participant)
     if rcv_participant is not None:
-        # See if the participant sent to trigger to end the session
-        if SESSION_END_TRIGGER and message == SESSION_END_TRIGGER:
-            Session.terminate(session_id)
-            return Response(
-                json.dumps({"message": "successfully ended session",
-                            "session_id": session_id}),
-                content_type="application/json")
         recipients = [rcv_participant]
         send_message(
             recipients,
@@ -308,32 +295,22 @@ def inbound_handler():
             message,
             session_id
         )
-        return Response(
-            json.dumps({"message": "successfully proxied message",
-                        "session_id": session_id,
-                        "from": tx_participant,
-                        "to": rcv_participant}),
-            content_type="application/json")
-    recipients = [tx_participant]
-    message = NO_SESSION_MSG
-    send_message(
-        recipients,
-        virtual_tn,
-        message,
-        None,
-        is_system_msg=True,
-    )
-    msg = ("Session not found, or {} is not authorized to participate".format(
-        tx_participant))
-    log.info({"message": msg})
-    # TODO given for internal use, we can indicate whether the session isn't found or
-    # participants are unauthorized.
-    return Response(json.dumps(
-        {"message":
-         "Session not found, or {} is not authorized to participate".format(
-             tx_participant)}),
-        content_type="application/json",
-        status=404)
+    else:
+        recipients = [tx_participant]
+        message = NO_SESSION_MSG
+        send_message(
+            recipients,
+            virtual_tn,
+            message,
+            None,
+            is_system_msg=True,
+        )
+        msg = ("Session not found, or {} is not authorized to participate".format(
+            tx_participant))
+        log.info({"message": msg})
+        # TODO given for internal use, we can indicate whether the
+        # session isn't found or participants are unauthorized.
+    return Response(status=200)
 
 if __name__ == "__main__":
     app.run('0.0.0.0', 8000)
