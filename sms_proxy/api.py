@@ -1,7 +1,4 @@
-import os
-import uuid
 import simplejson as json
-from datetime import datetime, timedelta
 
 from flask import Flask, request, Response
 from sqlalchemy.exc import IntegrityError
@@ -191,8 +188,8 @@ def proxy_session():
                 expiry_window
             )
             virtual_tn.session_id = session.id
-            db.session.add(session)
-            db.session.commit()
+            db_session.add(session)
+            db_session.commit()
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             if SEND_START_MSG:
                 recipients = [participant_a, participant_b]
