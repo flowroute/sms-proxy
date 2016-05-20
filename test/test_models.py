@@ -2,6 +2,7 @@ import pytest
 import json
 import urllib
 import uuid
+from datetime import datetime
 
 from sms_proxy.api import app, VirtualTN, Session
 from sms_proxy.database import db_session, init_db, destroy_db, engine
@@ -49,8 +50,18 @@ def test_virtual_tn_available(tns, available):
                 return
 
 
-def test_clean_expired_sessions():
-    pass
+#def test_clean_expired_sessions():
+#    new_tn = VirtualTN('1234567897')
+#    db_session.add(new_tn)
+#    db_session.commit()
+#    new_session = Session(
+#        new_tn.value, '12223334444', '12223335555', expiry_window=1)
+#    new_session.expiry_date = datetime.utcnow()
+#    db_session.add(new_session)
+#    db_session.commit()
+#    Session.clean_expired()
+#    sessions = Session.query.all()
+#    assert sessions is None
 
 
 def test_terminate_session():

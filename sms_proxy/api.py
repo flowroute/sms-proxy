@@ -26,6 +26,19 @@ sms_controller = APIController(username=FLOWROUTE_ACCESS_KEY,
 app.sms_controller = sms_controller
 
 
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    db_session.remove()
+
+
+# Use prod, or dev database depending on debug mode
+if DEBUG_MODE:
+    app.debug = DEBUG_MODE
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + TEST_DB
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB
+
+
 def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
     if is_system_msg:
         msg = "[{}]: {}".format(ORG_NAME.upper(), msg)
@@ -38,28 +51,18 @@ def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
             app.sms_controller.create_message(message)
         except Exception as e:
             try:
-                log.info("got exception e {}, code: {}, response {}".format(
-                    e, e.response_code, e.response_body))
+                log.critical({"message": "raised an exception sending SMS",
+                              "status": "failed",
+                              "exc": e,
+                              "strerr": e.response_body})
             except:
                 pass
             raise
         else:
             log.info(
                 {"message": "Message sent to {} for session {}".format(
-                 recipient, session_id)})
-
-
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    db_session.remove()
-
-
-# Use prod, or dev database depending on debug mode
-if DEBUG_MODE:
-    app.debug = DEBUG_MODE
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + TEST_DB
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB
+                 recipient, session_id),
+                 "status": "success"})
 
 
 class InvalidAPIUsage(Exception):
@@ -93,11 +96,10 @@ def virtual_tn():
             db_session.add(virtual_tn)
             db_session.commit()
         except IntegrityError:
-            # TODO: WHY DONT WE EVER GET HERE??
             db_session.rollback()
             msg = ("did not add virtual TN {} to the pool "
                    "-- already exists").format(value)
-            log.debug({"message": msg})
+            log.info({"message": msg})
             raise InvalidAPIUsage(
                 "Virtual TN already exists",
                 payload={'reason':
@@ -133,7 +135,8 @@ def virtual_tn():
         except NoResultFound:
             msg = ("could not delete virtual TN ({})"
                    " because it does not exist").format(value)
-            log.info({"message": msg})
+            log.info({"message": msg,
+                      "status": "failed"})
             raise InvalidAPIUsage(
                 "Virtual TN could not be deleted because it does not exist",
                 status_code=404,
@@ -172,11 +175,14 @@ def proxy_session():
         Session.clean_expired()
         virtual_tn = VirtualTN.get_next_available()
         if virtual_tn is None:
-            msg = "Could not create session -- No virtual TNs available"
-            log.critical({"message": msg})
+            msg = "Could not create a new session -- No virtual TNs available."
+            log.critical({"message": msg,
+                          "status": "failed"})
             return Response(
                 json.dumps(
-                    {"message": msg}),
+                    {"message": msg,
+                     "status": "failed",
+                     }),
                 content_type="application/json",
                 status=400)
         else:
@@ -186,9 +192,19 @@ def proxy_session():
                 participant_b,
                 expiry_window
             )
-            virtual_tn.session_id = session.id
-            db_session.add(session)
-            db_session.commit()
+            try:
+                virtual_tn.session_id = session.id
+                db_session.add(session)
+                db_session.commit()
+            except IntegrityError:
+                db_session.rollback()
+                msg = "There were two sessions attempting to reserve the same virtual tn. Please retry."
+                log.error({"message": msg,
+                           "status": "failed"})
+                return Response(
+                    json.dumps({"message": msg, "status": "failed"}),
+                    content_type="application/json",
+                    status=500)
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             recipients = [participant_a, participant_b]
             send_message(
@@ -201,10 +217,12 @@ def proxy_session():
                 session.id,
                 participant_a,
                 participant_b)
-            log.info({"message": msg})
+            log.info({"message": msg,
+                      "status": "success"})
             return Response(
                 json.dumps(
                     {"message": "created session",
+                     "status": "succeeded",
                      "session_id": session.id,
                      "expiry_date": expiry_date,
                      "virtual_tn": virtual_tn.value,
@@ -242,13 +260,15 @@ def proxy_session():
             msg = ("could not delete session '{}' "
                    "because it does not exist").format(
                 session_id)
-            log.info({"message": msg})
+            log.info({"message": msg,
+                      "status": "failed"})
             raise InvalidAPIUsage(
                 "Session could not be deleted because it does not exist",
                 status_code=404,
                 payload={'reason':
                          'Session not found'})
-        participant_a, participant_b, virtual_tn = Session.terminate(session_id)
+        participant_a, participant_b, virtual_tn = Session.terminate(
+            session_id)
         recipients = [participant_a, participant_b]
         send_message(
             recipients,
@@ -259,10 +279,12 @@ def proxy_session():
         msg = "Ended session {} and released {} back to pool".format(
             session_id,
             virtual_tn.value)
-        log.info({"message": msg})
+        log.info({"message": msg,
+                  "status": "success"})
 
         return Response(
             json.dumps({"message": "successfully ended session",
+                        "status": "succeeded",
                         "session_id": session_id}),
             content_type="application/json")
 
@@ -280,9 +302,12 @@ def inbound_handler():
         tx_participant = body['from']
         int(body['from'])
         message = body['body']
-    except (KeyError, ValueError):
+    except (KeyError, ValueError) as e:
         msg = ("Malformed inbound message: {}".format(body))
-        log.info({"message": msg})
+        log.error({"message": msg,
+                   "status": "failed",
+                   "exc": str(e)})
+        return
     rcv_participant, session_id = Session.get_other_participant(
         virtual_tn,
         tx_participant)
@@ -306,7 +331,8 @@ def inbound_handler():
         )
         msg = ("Session not found, or {} is not authorized to participate".format(
             tx_participant))
-        log.info({"message": msg})
+        log.info({"message": msg,
+                  "status": "failed"})
         # TODO given for internal use, we can indicate whether the
         # session isn't found or participants are unauthorized.
     return Response(status=200)

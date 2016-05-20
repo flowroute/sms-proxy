@@ -116,7 +116,7 @@ class Session(Base):
     __tablename__ = 'session'
     id = Column(String(40), primary_key=True)
     date_created = Column(DateTime)
-    virtual_TN = Column(String(18))
+    virtual_TN = Column(String(18), unique=True)
     participant_a = Column(String(18))
     participant_b = Column(String(18))
     expiry_date = Column(DateTime, nullable=True)
