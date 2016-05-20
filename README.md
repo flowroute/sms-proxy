@@ -148,7 +148,7 @@ With the service now deployed, configure authorization settings by customizing**
     |-----------|----------|----------|------------------------------|
     |`ORG_NAME`| String    | Sets your organization's name for use in system-generated SMS messages| 
     |`SESSION_START_MSG`| String| The message that is sent to both participants when their session has been created|
-    |`SESSION_END_MSG`|String| The message that is sent to both participants when their session has been ended |
+    |`SESSION_END_MSG`|String| The message that is sent to both participants when their session has been terminated (via the `DELETE` method).  This message is not sent when the session is expired. |
     |`NO_SESSION_MSG`|String|The message that is sent to a user who sends a message to a virtual TN that 1) is assigned to a session to which the user does not belong or 2) is not assigned to any active session.|
 
 3. Save the file.
