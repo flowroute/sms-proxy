@@ -26,6 +26,22 @@ def setup_module(module):
     init_db()
 
 
+@pytest.fixture
+def fresh_session():
+    VirtualTN.query.delete()
+    ProxySession.query.delete()
+    new_tn = VirtualTN('1234567897')
+    db_session.add(new_tn)
+    db_session.commit()
+    new_session = ProxySession(
+        new_tn.value, '12223334444', '12223335555', expiry_window=1)
+    new_tn.session_id = new_session.id
+    db_session.add(new_tn)
+    db_session.add(new_session)
+    db_session.commit()
+    return new_tn, new_session
+
+
 @pytest.mark.parametrize("tns, available", [
     ({1234567891: False}, False),
     ({1234567892: False, 1234567893: True}, False),
@@ -50,25 +66,37 @@ def test_virtual_tn_available(tns, available):
                 return
 
 
-def test_clean_expired_sessions():
-    new_tn = VirtualTN('1234567897')
-    db_session.add(new_tn)
-    db_session.commit()
-    new_session = ProxySession(
-        new_tn.value, '12223334444', '12223335555', expiry_window=1)
-    new_tn.session_id = new_session.id
+def test_clean_expired_sessions(fresh_session):
+    new_tn, new_session = fresh_session
     new_session.expiry_date = datetime.utcnow()
-    db_session.add(new_tn)
     db_session.add(new_session)
     db_session.commit()
+    sessions = ProxySession.query.all()
+    assert len(sessions) == 1
     ProxySession.clean_expired()
     sessions = ProxySession.query.all()
     assert len(sessions) == 0
 
 
-def test_terminate_session():
-    pass
+def test_terminate_session(fresh_session):
+    new_tn, new_session = fresh_session
+    sessions = ProxySession.query.all()
+    assert new_session.virtual_TN == new_tn.value
+    assert len(sessions) == 1
+    ProxySession.terminate(new_session.id)
+    released_tn = VirtualTN.query.filter_by(value=new_tn.value).one()
+    assert released_tn.session_id is None
+    sessions = ProxySession.query.all()
+    assert len(sessions) == 0
 
 
-def test_get_other_participant():
-    pass
+def test_get_other_participant(fresh_session):
+    new_tn, new_session = fresh_session
+    other_participant, session_id = ProxySession.get_other_participant(
+        new_tn.value, new_session.participant_a)
+    assert other_participant == new_session.participant_b
+    assert session_id == new_session.id
+    other_participant, session_id = ProxySession.get_other_participant(
+        new_tn.value, new_session.participant_b)
+    assert other_participant == new_session.participant_a
+    assert session_id == new_session.id
