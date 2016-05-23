@@ -56,12 +56,14 @@ def test_clean_expired_sessions():
     db_session.commit()
     new_session = ProxySession(
         new_tn.value, '12223334444', '12223335555', expiry_window=1)
+    new_tn.session_id = new_session.id
     new_session.expiry_date = datetime.utcnow()
+    db_session.add(new_tn)
     db_session.add(new_session)
     db_session.commit()
     ProxySession.clean_expired()
     sessions = ProxySession.query.all()
-    assert sessions is None
+    assert len(sessions) == 0
 
 
 def test_terminate_session():

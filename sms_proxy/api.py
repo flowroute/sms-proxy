@@ -191,8 +191,6 @@ def proxy_session():
             expiry_window = None
         # Release any VirtualTNs from expired ProxySessions back to the pool
         ProxySession.clean_expired()
-
-        # TODO This can become a model method (creating a session with a free virtual tn, and raising custom errors)
         virtual_tn = VirtualTN.get_next_available()
         if virtual_tn is None:
             msg = "Could not create a new session -- No virtual TNs available."
@@ -214,8 +212,8 @@ def proxy_session():
             )
             try:
                 virtual_tn.session_id = session.id
-                db_session.add(virtual_tn)
                 db_session.add(session)
+                db_session.add(virtual_tn)
                 db_session.commit()
             except IntegrityError:
                 db_session.rollback()
@@ -226,7 +224,6 @@ def proxy_session():
                     json.dumps({"message": msg, "status": "failed"}),
                     content_type="application/json",
                     status=500)
-            # TODO ends here
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             recipients = [participant_a, participant_b]
             send_message(
@@ -315,7 +312,6 @@ def proxy_session():
 def inbound_handler():
     # We'll take this time to clear out any expired sessions and release
     # TNs back to the pool if possible
-    # TODO we could fire off a thread here.
     ProxySession.clean_expired()
     body = request.json
     try:
@@ -355,8 +351,6 @@ def inbound_handler():
             tx_participant))
         log.info({"message": msg,
                   "status": "failed"})
-        # TODO given for internal use, we can indicate whether the
-        # session isn't found or participants are unauthorized.
     return Response(status=200)
 
 if __name__ == "__main__":

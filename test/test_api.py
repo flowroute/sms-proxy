@@ -3,7 +3,7 @@ import json
 import urllib
 import uuid
 
-from sms_proxy.api import app, VirtualTN, Session
+from sms_proxy.api import app, VirtualTN, ProxySession
 from sms_proxy.database import db_session, init_db, destroy_db, engine
 from sms_proxy.settings import TEST_DB
 
