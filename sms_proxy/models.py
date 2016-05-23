@@ -38,7 +38,7 @@ class VirtualTN(Base):
         self.session_id = None
 
 
-class Session(Base):
+class ProxySession(Base):
     """
     id (str):
         The unique session identifier
@@ -63,8 +63,8 @@ class Session(Base):
         """
         current_timestamp = datetime.utcnow()
         try:
-            expired_sessions = db_session.query(Session).filter(
-                Session.expiry_date <= current_timestamp)
+            expired_sessions = db_session.query(ProxySession).filter(
+                ProxySession.expiry_date <= current_timestamp)
         except NoResultFound:
             return
         for session in expired_sessions:
@@ -93,7 +93,7 @@ class Session(Base):
         """
         session = None
         try:
-            session = Session.query.filter_by(virtual_TN=virtual_tn).one()
+            session = ProxySession.query.filter_by(virtual_TN=virtual_tn).one()
         except NoResultFound:
                 msg = ("A session with virtual TN '{}'"
                        " could not be found").format(virtual_tn)

@@ -12,7 +12,7 @@ from settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
                       NO_SESSION_MSG, DEBUG_MODE, TEST_DB, DB)
 from database import db_session, init_db
 from log import log
-from models import VirtualTN, Session
+from models import VirtualTN, ProxySession
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -62,7 +62,7 @@ def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
             log.info(
                 {"message": "Message sent to {} for session {}".format(
                  recipient, session_id),
-                 "status": "success"})
+                 "status": "succeeded"})
 
 
 class InvalidAPIUsage(Exception):
@@ -142,11 +142,30 @@ def virtual_tn():
                 status_code=404,
                 payload={'reason':
                          'virtual TN not found'})
-        db_session.delete(virtual_tn)
-        db_session.commit()
+        else:
+            # Release any VirtualTNs from expired ProxySessions
+            ProxySession.clean_expired()
+            try:
+                active_session = ProxySession.query.filter_by(
+                    virtual_TN=virtual_tn).one()
+            except NoResultFound:
+                db_session.delete(virtual_tn)
+                db_session.commit()
+            else:
+                msg = ("Cannot delete the number. There is an active "
+                       "ProxySession {} using that VirtualTN.".format(
+                           active_session.id))
+                return Response(
+                    json.dumps(
+                        {"message": msg,
+                         "status": "failed",
+                         }),
+                    content_type="application/json",
+                    status=400)
         return Response(
             json.dumps({"message": "successfully removed TN from pool",
-                        "value": value}),
+                        "value": value,
+                        "status": "succeeded"}),
             content_type="application/json")
 
 
@@ -170,9 +189,8 @@ def proxy_session():
             expiry_window = body['expiry_window']
         else:
             expiry_window = None
-        # We'll take this time to clear out any expired sessions and release
-        # TNs back to the pool if possible
-        Session.clean_expired()
+        # Release any VirtualTNs from expired ProxySessions back to the pool
+        ProxySession.clean_expired()
         virtual_tn = VirtualTN.get_next_available()
         if virtual_tn is None:
             msg = "Could not create a new session -- No virtual TNs available."
@@ -186,7 +204,7 @@ def proxy_session():
                 content_type="application/json",
                 status=400)
         else:
-            session = Session(
+            session = ProxySession(
                 virtual_tn.value,
                 participant_a,
                 participant_b,
@@ -213,12 +231,12 @@ def proxy_session():
                 SESSION_START_MSG,
                 session.id,
                 is_system_msg=True)
-            msg = "Session {} started with participants {} and {}".format(
+            msg = "ProxySession {} started with participants {} and {}".format(
                 session.id,
                 participant_a,
                 participant_b)
             log.info({"message": msg,
-                      "status": "success"})
+                      "status": "succeeded"})
             return Response(
                 json.dumps(
                     {"message": "created session",
@@ -230,7 +248,7 @@ def proxy_session():
                      "participant_b": participant_b}),
                 content_type="application/json")
     if request.method == 'GET':
-        sessions = Session.query.all()
+        sessions = ProxySession.query.all()
         res = [{
             'id': s.id,
             'date_created': s.date_created.strftime('%Y-%m-%d %H:%M:%S'),
@@ -255,7 +273,7 @@ def proxy_session():
                 payload={'reason':
                          'invalidAPIUsage'})
         try:
-            session = Session.query.filter_by(id=session_id).one()
+            session = ProxySession.query.filter_by(id=session_id).one()
         except NoResultFound:
             msg = ("could not delete session '{}' "
                    "because it does not exist").format(
@@ -263,11 +281,11 @@ def proxy_session():
             log.info({"message": msg,
                       "status": "failed"})
             raise InvalidAPIUsage(
-                "Session could not be deleted because it does not exist",
+                "ProxySession could not be deleted because it does not exist",
                 status_code=404,
                 payload={'reason':
-                         'Session not found'})
-        participant_a, participant_b, virtual_tn = Session.terminate(
+                         'ProxySession not found'})
+        participant_a, participant_b, virtual_tn = ProxySession.terminate(
             session_id)
         recipients = [participant_a, participant_b]
         send_message(
@@ -280,7 +298,7 @@ def proxy_session():
             session_id,
             virtual_tn.value)
         log.info({"message": msg,
-                  "status": "success"})
+                  "status": "succeeded"})
 
         return Response(
             json.dumps({"message": "successfully ended session",
@@ -294,7 +312,7 @@ def inbound_handler():
     # We'll take this time to clear out any expired sessions and release
     # TNs back to the pool if possible
     # TODO we could fire off a thread here.
-    Session.clean_expired()
+    ProxySession.clean_expired()
     body = request.json
     try:
         virtual_tn = body['to']
@@ -308,7 +326,7 @@ def inbound_handler():
                    "status": "failed",
                    "exc": str(e)})
         return
-    rcv_participant, session_id = Session.get_other_participant(
+    rcv_participant, session_id = ProxySession.get_other_participant(
         virtual_tn,
         tx_participant)
     if rcv_participant is not None:
@@ -329,7 +347,7 @@ def inbound_handler():
             None,
             is_system_msg=True,
         )
-        msg = ("Session not found, or {} is not authorized to participate".format(
+        msg = ("ProxySession not found, or {} is not authorized to participate".format(
             tx_participant))
         log.info({"message": msg,
                   "status": "failed"})
