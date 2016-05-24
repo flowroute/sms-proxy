@@ -30,10 +30,10 @@ def setup_function(function):
 
 class MockController():
         def __init__(self):
-            self.request = None
+            self.requests = []
 
         def create_message(self, msg):
-            self.request = msg
+            self.requests.append(msg)
 
 mock_controller = MockController()
 
@@ -128,4 +128,52 @@ def test_post_session():
     data = json.loads(resp.data)
     assert 'Created new session' in data['message']
     assert data['virtual_tn'] == vnum.value
+    assert len(mock_controller.requests) == 2
     assert data['session_id'] is not None
+
+
+def test_get_session():
+    client = app.test_client()
+    test_num_1 = '12223334444'
+    test_num_2 = '12223335555'
+    resp = client.get('/session')
+    data = json.loads(resp.data)
+    assert data['total_sessions'] == 0
+    assert data['sessions'] == []
+    sess_1 = ProxySession(test_num_1, 'cust_1_num', 'cust_2_num')
+    sess_2 = ProxySession(test_num_2, 'cust_1_num', 'cust_2_num')
+    db_session.add(sess_1)
+    db_session.add(sess_2)
+    db_session.commit()
+    resp = client.get('/session')
+    data = json.loads(resp.data)
+    assert data['total_sessions'] == 2
+
+
+def test_delete_session():
+    mock_controller = MockController()
+    app.sms_controller = mock_controller
+    client = app.test_client()
+    resp = client.delete('/session',
+                         data=json.dumps({'session_id': 'fake_id'}),
+                         content_type='application/json')
+    data = json.loads(resp.data)
+    assert resp.status_code == 404
+    msg = ("ProxySession {} could not be deleted because"
+           " it does not exist".format('fake_id'))
+    assert data['message'] == msg
+    test_num_1 = '12223334444'
+    vnum_1 = VirtualTN(test_num_1)
+    sess_1 = ProxySession(test_num_1, 'cust_1_num', 'cust_2_num')
+    vnum_1.session_id = sess_1.id
+    db_session.add(sess_1)
+    db_session.add(vnum_1)
+    db_session.commit()
+    resp = client.delete('/session',
+                         data=json.dumps({'session_id': sess_1.id}),
+                         content_type='application/json')
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data['message'] == 'Successfully ended the session.'
+    assert data['session_id'] == sess_1.id
+    assert len(mock_controller.requests) == 2

@@ -276,13 +276,12 @@ def proxy_session():
         try:
             session = ProxySession.query.filter_by(id=session_id).one()
         except NoResultFound:
-            msg = ("could not delete session '{}' "
-                   "because it does not exist").format(
-                session_id)
+            msg = ("ProxySession {} could not be deleted because"
+                   " it does not exist".format(session_id))
             log.info({"message": msg,
                       "status": "failed"})
             raise InvalidAPIUsage(
-                "ProxySession could not be deleted because it does not exist",
+                msg,
                 status_code=404,
                 payload={'reason':
                          'ProxySession not found'})
@@ -302,7 +301,7 @@ def proxy_session():
                   "status": "succeeded"})
 
         return Response(
-            json.dumps({"message": "Successfully ended session",
+            json.dumps({"message": "Successfully ended the session.",
                         "status": "succeeded",
                         "session_id": session_id}),
             content_type="application/json")
@@ -358,6 +357,7 @@ def inbound_handler():
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
+    response.content_type = 'application/json'
     return response
 
 if __name__ == "__main__":
