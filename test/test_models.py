@@ -11,7 +11,8 @@ from sms_proxy.settings import TEST_DB
 
 def teardown_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
-        destroy_db()
+        VirtualTN.query.delete()
+        ProxySession.query.delete()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
@@ -19,11 +20,11 @@ def teardown_module(module):
 
 def setup_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
-        destroy_db()
+        VirtualTN.query.delete()
+        ProxySession.query.delete()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
-    init_db()
 
 
 @pytest.fixture

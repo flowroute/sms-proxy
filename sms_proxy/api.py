@@ -1,6 +1,6 @@
 import simplejson as json
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, jsonify
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -131,7 +131,7 @@ def virtual_tn():
                 payload={'reason':
                          'invalidAPIUsage'})
         try:
-            virtual_tn = VirtualTN.query.filter_by(value=value).one()
+            virtualTN = VirtualTN.query.filter_by(value=value).one()
         except NoResultFound:
             msg = ("could not delete virtual TN ({})"
                    " because it does not exist").format(value)
@@ -147,9 +147,9 @@ def virtual_tn():
             ProxySession.clean_expired()
             try:
                 active_session = ProxySession.query.filter_by(
-                    virtual_TN=virtual_tn).one()
+                    virtual_TN=virtualTN.value).one()
             except NoResultFound:
-                db_session.delete(virtual_tn)
+                db_session.delete(virtualTN)
                 db_session.commit()
             else:
                 msg = ("Cannot delete the number. There is an active "
@@ -316,11 +316,9 @@ def inbound_handler():
     body = request.json
     try:
         virtual_tn = body['to']
-        int(body['to'])
         tx_participant = body['from']
-        int(body['from'])
         message = body['body']
-    except (KeyError, ValueError) as e:
+    except KeyError as e:
         msg = ("Malformed inbound message: {}".format(body))
         log.error({"message": msg,
                    "status": "failed",
@@ -352,6 +350,13 @@ def inbound_handler():
         log.info({"message": msg,
                   "status": "failed"})
     return Response(status=200)
+
+
+@app.errorhandler((InvalidAPIUsage,))
+def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
 
 if __name__ == "__main__":
     app.run('0.0.0.0', 8000)
