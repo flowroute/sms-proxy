@@ -97,7 +97,7 @@ def virtual_tn():
             db_session.commit()
         except IntegrityError:
             db_session.rollback()
-            msg = ("did not add virtual TN {} to the pool "
+            msg = ("Did not add virtual TN {} to the pool "
                    "-- already exists").format(value)
             log.info({"message": msg})
             raise InvalidAPIUsage(
@@ -106,7 +106,7 @@ def virtual_tn():
                          'duplicate virtual TN'})
         return Response(
             json.dumps(
-                {"message": "successfully added TN to pool",
+                {"message": "Successfully added TN to pool",
                  "value": value}),
             content_type="application/json")
     # Retrieve all virtual TNs from pool
@@ -133,7 +133,7 @@ def virtual_tn():
         try:
             virtualTN = VirtualTN.query.filter_by(value=value).one()
         except NoResultFound:
-            msg = ("could not delete virtual TN ({})"
+            msg = ("Could not delete virtual TN ({})"
                    " because it does not exist").format(value)
             log.info({"message": msg,
                       "status": "failed"})
@@ -163,7 +163,7 @@ def virtual_tn():
                     content_type="application/json",
                     status=400)
         return Response(
-            json.dumps({"message": "successfully removed TN from pool",
+            json.dumps({"message": "Successfully removed TN from pool",
                         "value": value,
                         "status": "succeeded"}),
             content_type="application/json")
@@ -240,7 +240,7 @@ def proxy_session():
                       "status": "succeeded"})
             return Response(
                 json.dumps(
-                    {"message": "created session",
+                    {"message": "Created new session",
                      "status": "succeeded",
                      "session_id": session.id,
                      "expiry_date": expiry_date,
@@ -302,7 +302,7 @@ def proxy_session():
                   "status": "succeeded"})
 
         return Response(
-            json.dumps({"message": "successfully ended session",
+            json.dumps({"message": "Successfully ended session",
                         "status": "succeeded",
                         "session_id": session_id}),
             content_type="application/json")
@@ -316,9 +316,11 @@ def inbound_handler():
     body = request.json
     try:
         virtual_tn = body['to']
+        assert len(virtual_tn) <= 18
         tx_participant = body['from']
+        assert len(tx_participant) <= 18
         message = body['body']
-    except KeyError as e:
+    except (KeyError, AssertionError) as e:
         msg = ("Malformed inbound message: {}".format(body))
         log.error({"message": msg,
                    "status": "failed",

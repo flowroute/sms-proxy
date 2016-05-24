@@ -13,6 +13,7 @@ def teardown_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
         VirtualTN.query.delete()
         ProxySession.query.delete()
+        db_session.commit()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
@@ -22,6 +23,7 @@ def setup_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
         VirtualTN.query.delete()
         ProxySession.query.delete()
+        db_session.commit()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))

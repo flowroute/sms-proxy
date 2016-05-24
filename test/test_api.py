@@ -12,6 +12,7 @@ def teardown_module(module):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
         VirtualTN.query.delete()
         ProxySession.query.delete()
+        db_session.commit()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
@@ -21,9 +22,12 @@ def setup_function(function):
     if TEST_DB in app.config['SQLALCHEMY_DATABASE_URI']:
         VirtualTN.query.delete()
         ProxySession.query.delete()
+        db_session.commit()
     else:
         raise AttributeError(("The production database is turned on. "
                               "Flip settings.DEBUG to True"))
+
+
 class MockController():
         def __init__(self):
             self.request = None
@@ -90,5 +94,38 @@ def test_delete_tn():
                          data=json.dumps({'value': test_num}),
                          content_type='application/json')
     data = json.loads(resp.data)
-    assert 'successfully removed TN from pool' in data['message']
+    assert 'Successfully removed TN from pool' in data['message']
     assert resp.status_code == 200
+
+
+def test_post_session():
+    mock_controller = MockController()
+    app.sms_controller = mock_controller
+    client = app.test_client()
+    test_num = '12223334444'
+    resp = client.post('/session', data=json.dumps({'participant_a': '13334445555',
+                                                    'participant_b': '14445556666'}),
+                       content_type='application/json')
+    data = json.loads(resp.data)
+    assert resp.status_code == 400
+    assert 'Could not create a new session -- No virtual TNs available.' in data['message']
+    vnum = VirtualTN(test_num)
+    vnum.session_id = 'fake_session_id'
+    db_session.add(vnum)
+    db_session.commit()
+    resp = client.post('/session', data=json.dumps({'participant_a': '13334445555',
+                                                    'participant_b': '14445556666'}),
+                       content_type='application/json')
+    data = json.loads(resp.data)
+    assert resp.status_code == 400
+    vnum.session_id = None
+    db_session.add(vnum)
+    db_session.commit()
+    resp = client.post('/session', data=json.dumps({'participant_a': '13334445555',
+                                                    'participant_b': '14445556666'}),
+                       content_type='application/json')
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert 'Created new session' in data['message']
+    assert data['virtual_tn'] == vnum.value
+    assert data['session_id'] is not None
