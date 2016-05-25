@@ -18,7 +18,7 @@ class VirtualTN(Base):
         The session_id, if any, for which this virtual TN is assigned to.
     """
     @classmethod
-    def get_available(cls):
+    def get_next_available(cls):
         """
         Returns a virtual TN that does not already have a session attached
         to it, otherwise returns None
@@ -38,7 +38,7 @@ class VirtualTN(Base):
         self.session_id = None
 
 
-class Session(Base):
+class ProxySession(Base):
     """
     id (str):
         The unique session identifier
@@ -63,8 +63,8 @@ class Session(Base):
         """
         current_timestamp = datetime.utcnow()
         try:
-            expired_sessions = db_session.query(Session).filter(
-                Session.expiry_date <= current_timestamp)
+            expired_sessions = db_session.query(ProxySession).filter(
+                ProxySession.expiry_date <= current_timestamp)
         except NoResultFound:
             return
         for session in expired_sessions:
@@ -83,7 +83,7 @@ class Session(Base):
         db_session.commit()
         db_session.delete(session)
         db_session.commit()
-        return participant_a, participant_b
+        return participant_a, participant_b, virtual_tn
 
     @classmethod
     def get_other_participant(cls, virtual_tn, sender):
@@ -93,7 +93,7 @@ class Session(Base):
         """
         session = None
         try:
-            session = Session.query.filter_by(virtual_TN=virtual_tn).one()
+            session = ProxySession.query.filter_by(virtual_TN=virtual_tn).one()
         except NoResultFound:
                 msg = ("A session with virtual TN '{}'"
                        " could not be found").format(virtual_tn)
@@ -116,7 +116,7 @@ class Session(Base):
     __tablename__ = 'session'
     id = Column(String(40), primary_key=True)
     date_created = Column(DateTime)
-    virtual_TN = Column(String(18))
+    virtual_TN = Column(String(18), unique=True)
     participant_a = Column(String(18))
     participant_b = Column(String(18))
     expiry_date = Column(DateTime, nullable=True)
