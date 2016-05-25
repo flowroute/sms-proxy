@@ -50,14 +50,12 @@ def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
         try:
             app.sms_controller.create_message(message)
         except Exception as e:
-            try:
-                log.critical({"message": "raised an exception sending SMS",
-                              "status": "failed",
-                              "exc": e,
-                              "strerr": e.response_body})
-            except:
-                pass
-            raise
+            log.critical({"message": "raised an exception sending SMS",
+                          "status": "failed",
+                          "exc": e,
+                          "strerr": vars(e).get('response_body', None)})
+            # TODO make more durable to rate limiting with a couple retries
+            # If e.status_code == 500: _send_message(attempts+1, virtual_tn ...
         else:
             log.info(
                 {"message": "Message sent to {} for session {}".format(
@@ -304,15 +302,21 @@ def inbound_handler():
         tx_participant = body['from']
         assert len(tx_participant) <= 18
         message = body['body']
-    except (KeyError, AssertionError) as e:
+    except (TypeError, KeyError, AssertionError) as e:
         msg = ("Malformed inbound message: {}".format(body))
         log.error({"message": msg,
                    "status": "failed",
                    "exc": str(e)})
-        return
+        return Response('There was an issue parsing your request.', status=400)
     rcv_participant, session_id = ProxySession.get_other_participant(
         virtual_tn,
         tx_participant)
+    # TODO potential security feature
+    # Do not respond to unkown senders eg.
+    # if settings.ON_NET_USER_SYSTEM_MESSAGES_ONLY == TRUE:
+    #     valid = check_registered_numbers(tx_participant)
+    #     if not valid:
+    #         return Response(status=200)
     if rcv_participant is not None:
         recipients = [rcv_participant]
         send_message(
@@ -330,7 +334,7 @@ def inbound_handler():
             is_system_msg=True)
         msg = ("ProxySession not found, or {} is not authorized "
                "to participate".format(tx_participant))
-        log.info({"message": msg, "status": "failed"})
+        log.info({"message": msg, "status": "succeeded"})
     return Response(status=200)
 
 
