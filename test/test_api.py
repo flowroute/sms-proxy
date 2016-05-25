@@ -177,3 +177,57 @@ def test_delete_session():
     assert data['message'] == 'Successfully ended the session.'
     assert data['session_id'] == sess_1.id
     assert len(mock_controller.requests) == 2
+
+
+@pytest.fixture
+def virtual_tn():
+    virtual_tn = VirtualTN('12069992222')
+    db_session.add(virtual_tn)
+    db_session.commit()
+    return virtual_tn
+
+
+@pytest.fixture
+def valid_session(virtual_tn):
+    first_num = '12223334444'
+    sec_num = '13334445555'
+    proxy_sess = ProxySession(virtual_tn.value, first_num, sec_num)
+    virtual_tn.session_id = proxy_sess.id
+    db_session.add(virtual_tn)
+    db_session.add(proxy_sess)
+    db_session.commit()
+    return proxy_sess
+
+
+def test_inbound_handler_success_a_traverse(valid_session):
+    mock_controller = MockController()
+    app.sms_controller = mock_controller
+    client = app.test_client()
+    req = {'to': valid_session.virtual_TN,
+           'from': valid_session.participant_b,
+           'body': 'hello from participant b'}
+    resp = client.post('/', data=json.dumps(req),
+                       content_type='application/json')
+    assert resp.status_code == 200
+    sms = mock_controller.requests[0]
+    sms.content == 'hello from participant b'
+    sms.to = valid_session.participant_a
+    sms.mfrom = valid_session.participant_b
+    assert len(mock_controller.requests) == 1
+
+
+def test_inbound_handler_success_b_traverse(valid_session):
+    mock_controller = MockController()
+    app.sms_controller = mock_controller
+    client = app.test_client()
+    req = {'to': valid_session.virtual_TN,
+           'from': valid_session.participant_a,
+           'body': 'hello from participant a'}
+    resp = client.post('/', data=json.dumps(req),
+                       content_type='application/json')
+    assert resp.status_code == 200
+    sms = mock_controller.requests[0]
+    sms.content == 'hello from participant a'
+    sms.to = valid_session.participant_b
+    sms.mfrom = valid_session.participant_a
+    assert len(mock_controller.requests) == 1

@@ -183,8 +183,7 @@ def proxy_session():
             raise InvalidAPIUsage(
                 ("Required argument: 'participant_a' (str, length <= 18)"
                  ", 'participant_b' (str, length <= 18)"),
-                payload={'reason':
-                         'invalidAPIUsage'})
+                payload={'reason': 'invalidAPIUsage'})
         if 'expiry_window' in body:
             expiry_window = body['expiry_window']
         else:
@@ -194,22 +193,16 @@ def proxy_session():
         virtual_tn = VirtualTN.get_next_available()
         if virtual_tn is None:
             msg = "Could not create a new session -- No virtual TNs available."
-            log.critical({"message": msg,
-                          "status": "failed"})
+            log.critical({"message": msg, "status": "failed"})
             return Response(
-                json.dumps(
-                    {"message": msg,
-                     "status": "failed",
-                     }),
-                content_type="application/json",
-                status=400)
+                json.dumps({"message": msg, "status": "failed"}),
+                content_type="application/json", status=400)
         else:
             session = ProxySession(
                 virtual_tn.value,
                 participant_a,
                 participant_b,
-                expiry_window
-            )
+                expiry_window)
             try:
                 virtual_tn.session_id = session.id
                 db_session.add(session)
@@ -218,8 +211,7 @@ def proxy_session():
             except IntegrityError:
                 db_session.rollback()
                 msg = "There were two sessions attempting to reserve the same virtual tn. Please retry."
-                log.error({"message": msg,
-                           "status": "failed"})
+                log.error({"message": msg, "status": "failed"})
                 return Response(
                     json.dumps({"message": msg, "status": "failed"}),
                     content_type="application/json",
@@ -236,8 +228,7 @@ def proxy_session():
                 session.id,
                 participant_a,
                 participant_b)
-            log.info({"message": msg,
-                      "status": "succeeded"})
+            log.info({"message": msg, "status": "succeeded"})
             return Response(
                 json.dumps(
                     {"message": "Created new session",
@@ -260,10 +251,8 @@ def proxy_session():
             if s.expiry_date else None}
             for s in sessions]
         return Response(
-            json.dumps({"total_sessions": len(res),
-                        "sessions": res}),
+            json.dumps({"total_sessions": len(res), "sessions": res}),
             content_type="application/json")
-    # Delete an existing session
     if request.method == "DELETE":
         body = request.json
         try:
@@ -281,8 +270,7 @@ def proxy_session():
             log.info({"message": msg,
                       "status": "failed"})
             raise InvalidAPIUsage(
-                msg,
-                status_code=404,
+                msg, status_code=404,
                 payload={'reason':
                          'ProxySession not found'})
         participant_a, participant_b, virtual_tn = ProxySession.terminate(
@@ -295,11 +283,8 @@ def proxy_session():
             session_id,
             is_system_msg=True)
         msg = "Ended session {} and released {} back to pool".format(
-            session_id,
-            virtual_tn.value)
-        log.info({"message": msg,
-                  "status": "succeeded"})
-
+            session_id, virtual_tn.value)
+        log.info({"message": msg, "status": "succeeded"})
         return Response(
             json.dumps({"message": "Successfully ended the session.",
                         "status": "succeeded",
@@ -334,22 +319,18 @@ def inbound_handler():
             recipients,
             virtual_tn,
             message,
-            session_id
-        )
+            session_id)
     else:
         recipients = [tx_participant]
-        message = NO_SESSION_MSG
         send_message(
             recipients,
             virtual_tn,
-            message,
+            NO_SESSION_MSG,
             None,
-            is_system_msg=True,
-        )
-        msg = ("ProxySession not found, or {} is not authorized to participate".format(
-            tx_participant))
-        log.info({"message": msg,
-                  "status": "failed"})
+            is_system_msg=True)
+        msg = ("ProxySession not found, or {} is not authorized "
+               "to participate".format(tx_participant))
+        log.info({"message": msg, "status": "failed"})
     return Response(status=200)
 
 
