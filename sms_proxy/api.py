@@ -328,6 +328,7 @@ def inbound_handler():
                    "status": "failed",
                    "exc": str(e)})
         return Response('There was an issue parsing your request.', status=400)
+    # TODO should this raise an exception if not found?
     rcv_participant, session_id = ProxySession.get_other_participant(
         virtual_tn,
         tx_participant)
