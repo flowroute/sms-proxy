@@ -53,6 +53,13 @@ class InternalSMSDispatcherError(Exception):
 
 
 def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
+    """
+    For each recipient, passes a Message to Flowroute's messaging controller.
+    The message will be sent from the 'virtual_tn' number. If this is a system
+    message, the message body will be prefixed with the org name for context.
+    If an exception is raised by the controller, an error is logged, and an
+    internal error is raised with the exception content.
+    """
     if is_system_msg:
         msg = "[{}]: {}".format(ORG_NAME.upper(), msg)
     for recipient in recipients:
@@ -82,6 +89,9 @@ def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
 
 
 class InvalidAPIUsage(Exception):
+    """
+    A generic exception for invalid API interactions.
+    """
     def __init__(self, message, status_code=400, payload=None):
         Exception.__init__(self)
         self.message = message
@@ -96,6 +106,10 @@ class InvalidAPIUsage(Exception):
 
 @app.route("/tn", methods=['POST', 'GET', 'DELETE'])
 def virtual_tn():
+    """
+    The VirtualTN resource endpoint for adding, retrieving, and 
+    deleting VirtualTN's from the pool.
+    """
     # Add a TN to the virtual TN pool
     if request.method == 'POST':
         body = request.json
@@ -187,6 +201,10 @@ def virtual_tn():
 
 @app.route("/session", methods=['POST', 'GET', 'DELETE'])
 def proxy_session():
+    """
+    The ProxySession resource endpoint for adding, retrieving, and 
+    deleting ProxySession from the pool.
+    """
     # Create a new session
     if request.method == "POST":
         body = request.json
@@ -312,6 +330,10 @@ def proxy_session():
 
 @app.route("/", methods=['POST'])
 def inbound_handler():
+    """
+    The inbound request handler for consuming HTTP wrapped SMS content from
+    Flowroute's messaging service.
+    """
     # We'll take this time to clear out any expired sessions and release
     # TNs back to the pool if possible
     ProxySession.clean_expired()
