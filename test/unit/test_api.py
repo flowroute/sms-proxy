@@ -4,9 +4,10 @@ import urllib
 import uuid
 from datetime import datetime
 
-from sms_proxy.api import app, VirtualTN, ProxySession
+from sms_proxy.api import app, VirtualTN, ProxySession, InternalSMSDispatcherError
 from sms_proxy.database import db_session, init_db, destroy_db, engine
-from sms_proxy.settings import TEST_DB, NO_SESSION_MSG, ORG_NAME
+from sms_proxy.settings import (TEST_DB, NO_SESSION_MSG, ORG_NAME,
+                                SESSION_END_MSG, SESSION_START_MSG)
 
 
 def teardown_module(module):
@@ -32,9 +33,18 @@ def setup_function(function):
 class MockController():
         def __init__(self):
             self.requests = []
+            self.resp = []
 
         def create_message(self, msg):
             self.requests.append(msg)
+            try:
+                err = self.resp.pop(0)
+            except:
+                pass
+            else:
+                if err is False:
+                    raise Exception("Unkown exception from FlowrouteSDK.")
+
 
 mock_controller = MockController()
 
@@ -153,7 +163,9 @@ def test_post_session():
     assert 'Created new session' in data['message']
     assert data['virtual_tn'] == vnum.value
     assert len(mock_controller.requests) == 2
-    # TODO Check the SMS content
+    msg = "[{}]: {}".format(ORG_NAME.upper(), SESSION_START_MSG)
+    sms = mock_controller.requests[0]
+    assert sms.content == msg
     assert data['session_id'] is not None
 
 
@@ -211,7 +223,9 @@ def test_delete_session():
     data = json.loads(resp.data)
     assert data['message'] == 'Successfully ended the session.'
     assert data['session_id'] == sess_1.id
-    # TODO check the sms content
+    sms = mock_controller.requests[0]
+    msg = "[{}]: {}".format(ORG_NAME.upper(), SESSION_END_MSG)
+    assert sms.content == msg
     assert len(mock_controller.requests) == 2
 
 
@@ -326,3 +340,40 @@ def test_inbound_handler_unknown_number(fake_app):
     assert resp.status_code == 200
     sms = fake_app.sms_controller.requests[0]
     assert sms.to == mfrom
+
+
+@pytest.mark.parametrize("recipients, sys_msg, resp, err", [
+    (['12223334444', '12223335555'], False, True, None),
+    (['12223334444', '12223335555'], True, True, None),
+    (['12223334444'], False, True, None),
+    (['13334445555'], False, False, InternalSMSDispatcherError),
+])
+def test_send_message(fake_app, recipients, sys_msg, resp, err):
+    """
+    The send message function is able to generate system messages
+    by prepending the message with the organization name. It can
+    broadcast the message to multiple recipients. If an error 
+    occurs when using the SMS controller client, an internal 
+    exception is raised, bubbles up and is tranformed to a 
+    response for the client side. Database state is not rolled back
+    in the event of a message send failure.
+    """
+    session_id = 'session_id'
+    msg = 'hello'
+    virtual_tn = '13334445555'
+    from sms_proxy.api import send_message
+    if resp is False:
+        fake_app.sms_controller.resp.append(resp)
+        with pytest.raises(err):
+            send_message(recipients, virtual_tn, msg, session_id,
+                         is_system_msg=sys_msg)
+    else:
+        send_message(recipients, virtual_tn, msg, session_id,
+                     is_system_msg=sys_msg)
+        assert len(fake_app.sms_controller.requests) == len(recipients)
+        if sys_msg:
+            msg = "[{}]: {}".format(ORG_NAME.upper(), msg)
+        for sms in fake_app.sms_controller.requests:
+            assert sms.to in recipients
+            assert sms.mfrom == virtual_tn
+            assert sms.content == msg

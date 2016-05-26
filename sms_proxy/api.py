@@ -39,6 +39,19 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB
 
 
+class InternalSMSDispatcherError(Exception):
+    def __init__(self, message, status_code=500, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or())
+        rv['message'] = self.message
+        return rv
+
+
 def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
     if is_system_msg:
         msg = "[{}]: {}".format(ORG_NAME.upper(), msg)
@@ -50,12 +63,17 @@ def send_message(recipients, virtual_tn, msg, session_id, is_system_msg=False):
         try:
             app.sms_controller.create_message(message)
         except Exception as e:
-            log.critical({"message": "raised an exception sending SMS",
+            strerr = vars(e).get('response_body', None)
+            log.critical({"message": "Raised an exception sending SMS",
                           "status": "failed",
                           "exc": e,
                           "strerr": vars(e).get('response_body', None)})
             # TODO make more durable to rate limiting with a couple retries
             # If e.status_code == 500: _send_message(attempts+1, virtual_tn ...
+            raise InternalSMSDispatcherError(
+                "An error occured when requesting against Flowroute's API.",
+                payload={"strerr": strerr,
+                         "reason": "InternalSMSDispatcherError"})
         else:
             log.info(
                 {"message": "Message sent to {} for session {}".format(
@@ -338,7 +356,7 @@ def inbound_handler():
     return Response(status=200)
 
 
-@app.errorhandler((InvalidAPIUsage,))
+@app.errorhandler((InvalidAPIUsage, InternalSMSDispatcherError))
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
