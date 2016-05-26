@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm.exc import NoResultFound
 
-from database import Base, db_session
-from log import log
+from sms_proxy.database import Base, db_session
+from sms_proxy.log import log
 
 
 class VirtualTN(Base):

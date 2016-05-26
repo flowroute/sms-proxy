@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-from settings import DB, TEST_DB, DEBUG_MODE
+from sms_proxy.settings import DB, TEST_DB, DEBUG_MODE
 
 if DEBUG_MODE:
     engine = create_engine('sqlite:////tmp/{}'.format(TEST_DB),

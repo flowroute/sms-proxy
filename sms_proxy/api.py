@@ -7,12 +7,12 @@ from sqlalchemy.orm.exc import NoResultFound
 from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
-from settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
-                      ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
-                      NO_SESSION_MSG, DEBUG_MODE, TEST_DB, DB)
-from database import db_session, init_db
-from log import log
-from models import VirtualTN, ProxySession
+from sms_proxy.settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
+                                ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
+                                NO_SESSION_MSG, DEBUG_MODE, TEST_DB, DB)
+from sms_proxy.database import db_session, init_db
+from sms_proxy.log import log
+from sms_proxy.models import VirtualTN, ProxySession
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
