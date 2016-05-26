@@ -234,6 +234,7 @@ def proxy_session():
                     status=500)
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             recipients = [participant_a, participant_b]
+            # TODO if this fails, do we 'rollback' all the database changes
             send_message(
                 recipients,
                 virtual_tn.value,
@@ -292,6 +293,7 @@ def proxy_session():
         participant_a, participant_b, virtual_tn = ProxySession.terminate(
             session_id)
         recipients = [participant_a, participant_b]
+        # TODO if this fails, do we 'rollback' all the database changes
         send_message(
             recipients,
             virtual_tn.value,
