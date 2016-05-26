@@ -40,6 +40,10 @@ mock_controller = MockController()
 
 
 def test_post_new_tn():
+    """
+    Posts an number to the '/tn' route, checks for 200 then attempts again to
+    ensure virtual numbers are idempotent.
+    """
     client = app.test_client()
     test_num = '12223334444'
     resp = client.post('/tn', data=json.dumps({'value': test_num}),
@@ -51,6 +55,11 @@ def test_post_new_tn():
 
 
 def test_get_tns():
+    """
+    Adds two virtual numbers to the database, one reserved in a session
+    and one free. The '/tn' GET route is requested to and assertions
+    are made that the data returned reflects the state of the virtual tn's.
+    """
     client = app.test_client()
     num_1 = '12347779999'
     num_2 = '12347778888'
@@ -70,6 +79,11 @@ def test_get_tns():
 
 
 def test_delete_tn():
+    """
+    Creates a new virtual tn attached to a session, and requests to
+    delete that number which is an illegal operation. The VirtualTN is then
+    released, and the request is made again - this time succeeding.
+    """
     client = app.test_client()
     test_num = '12223334444'
     session = ProxySession(test_num, '12223334444', '12223335555',
@@ -100,6 +114,15 @@ def test_delete_tn():
 
 
 def test_post_session():
+    """
+    Initially attempts to create a session when there are no VirtualTN's
+    available. The service responds with a 400, and an appropriate message.
+    Attempts again, when there is a VirtualTN in the pool, but reserved,
+    the service will respond again with a 400. After releasing the 
+    VirtualTN, the request succesfully posts, and the response is checked
+    for appropriate values. Ensures both session initialization SMS messages
+    have been fired off.
+    """
     mock_controller = MockController()
     app.sms_controller = mock_controller
     client = app.test_client()
@@ -130,10 +153,15 @@ def test_post_session():
     assert 'Created new session' in data['message']
     assert data['virtual_tn'] == vnum.value
     assert len(mock_controller.requests) == 2
+    # TODO Check the SMS content
     assert data['session_id'] is not None
 
 
 def test_get_session():
+    """
+    Ensures the '/session' GET method returns json reflecting the state of the
+    database.
+    """
     client = app.test_client()
     test_num_1 = '12223334444'
     test_num_2 = '12223335555'
@@ -152,6 +180,12 @@ def test_get_session():
 
 
 def test_delete_session():
+    """
+    Initially tries to delete a session from an id that is unknown. The service
+    responds with a 404, and helpful message. A session is created an persisted
+    to the database. A delete request for that session is executed, and SMS's
+    are dispatched to the participants.
+    """
     mock_controller = MockController()
     app.sms_controller = mock_controller
     client = app.test_client()
@@ -177,6 +211,7 @@ def test_delete_session():
     data = json.loads(resp.data)
     assert data['message'] == 'Successfully ended the session.'
     assert data['session_id'] == sess_1.id
+    # TODO check the sms content
     assert len(mock_controller.requests) == 2
 
 
@@ -208,6 +243,11 @@ def fake_app(app=app):
 
 
 def test_inbound_handler_success_a_traverse(valid_session, fake_app):
+    """
+    Tests that incoming messages bound for a VirtualTN are succesfully
+    sent back out to the participant in an active session with that sender.
+    The proxy capability is bi-directional.
+    """
     client = fake_app.test_client()
     req = {'to': valid_session.virtual_TN,
            'from': valid_session.participant_b,
@@ -223,6 +263,11 @@ def test_inbound_handler_success_a_traverse(valid_session, fake_app):
 
 
 def test_inbound_handler_success_b_traverse(valid_session, fake_app):
+    """
+    Tests that incoming messages bound for a VirtualTN are succesfully
+    sent back out to the participant in an active session with that sender.
+    The proxy capability is bi-directional.
+    """
     client = fake_app.test_client()
     req = {'to': valid_session.virtual_TN,
            'from': valid_session.participant_a,
@@ -238,6 +283,12 @@ def test_inbound_handler_success_b_traverse(valid_session, fake_app):
 
 
 def test_inbound_handler_expired_session(fake_app, valid_session):
+    """
+    An inbound message intended for a VirtualTN that is no longer
+    in a session with the sender will no proxy to the other 
+    participant. Asserts a system message is fired back to the 
+    sender.
+    """
     valid_session.expiry_date = datetime.utcnow()
     db_session.add(valid_session)
     db_session.commit()
@@ -258,6 +309,11 @@ def test_inbound_handler_expired_session(fake_app, valid_session):
 
 
 def test_inbound_handler_unknown_number(fake_app):
+    """
+    An inbound message to a VirtualTN that is unkown will
+    receive a system SMS response indicating that it is 
+    not a valid session.
+    """
     client = fake_app.test_client()
     to = '12223334444'
     mfrom = '12223335555'
