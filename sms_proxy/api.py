@@ -252,13 +252,19 @@ def proxy_session():
                     status=500)
             expiry_date = session.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if session.expiry_date else None
             recipients = [participant_a, participant_b]
-            # TODO if this fails, do we 'rollback' all the database changes
-            send_message(
-                recipients,
-                virtual_tn.value,
-                SESSION_START_MSG,
-                session.id,
-                is_system_msg=True)
+            try:
+                send_message(
+                    recipients,
+                    virtual_tn.value,
+                    SESSION_START_MSG,
+                    session.id,
+                    is_system_msg=True)
+            except InternalSMSDispatcherError as e:
+                db_session.delete(session)
+                virtual_tn.session_id = None
+                db_session.add(virtual_tn)
+                db_session.commit()
+                raise e
             msg = "ProxySession {} started with participants {} and {}".format(
                 session.id,
                 participant_a,
