@@ -66,7 +66,7 @@ You will need your Access Key, Secret Key, and one or more SMS-enabled Flowroute
 
 2.  Change to the parent directory, and run the following:
 
-        git clone **GITHUB URL HERE**
+        git clone https://github.com/flowroute/sms-proxy.git
 
     The `git clone` command clones the **sms-proxy** repository as a sub directory within the parent folder.
 
