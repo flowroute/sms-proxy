@@ -31,6 +31,10 @@ def setup_module(module):
 
 @pytest.fixture
 def fresh_session():
+    """
+    Clears out any outstanding rows in the VirtualTN and ProxySession 
+    tables. Creates and returns a linked VirtualTN and ProxySession.
+    """
     VirtualTN.query.delete()
     ProxySession.query.delete()
     new_tn = VirtualTN('1234567897')
@@ -52,6 +56,10 @@ def fresh_session():
     ({1234567895: True, 1234567896: True}, True),
      ])
 def test_virtual_tn_available(tns, available):
+    """
+    The 'get_next_available' function returns the first non-reserved
+    VirtualTN.
+    """
     VirtualTN.query.delete()
     for num, available in tns.iteritems():
         new_tn = VirtualTN(num)
@@ -70,6 +78,9 @@ def test_virtual_tn_available(tns, available):
 
 
 def test_clean_expired_sessions(fresh_session):
+    """
+    The 'clean_expired' method does clear expired ProxySessions
+    """
     new_tn, new_session = fresh_session
     new_session.expiry_date = datetime.utcnow()
     db_session.add(new_session)
@@ -78,10 +89,15 @@ def test_clean_expired_sessions(fresh_session):
     assert len(sessions) == 1
     ProxySession.clean_expired()
     sessions = ProxySession.query.all()
+    assert new_tn.session_id is None
     assert len(sessions) == 0
 
 
 def test_terminate_session(fresh_session):
+    """
+    The 'terminate' method delete's the ProxySession and releases
+    the associated VirtualTN back to the pool.
+    """
     new_tn, new_session = fresh_session
     sessions = ProxySession.query.all()
     assert new_session.virtual_TN == new_tn.value
@@ -94,6 +110,10 @@ def test_terminate_session(fresh_session):
 
 
 def test_get_other_participant(fresh_session):
+    """
+    The 'get_other_participant' method is able to traverse the ProxySession
+    associated to the VirtualTN and sender number.
+    """
     new_tn, new_session = fresh_session
     other_participant, session_id = ProxySession.get_other_participant(
         new_tn.value, new_session.participant_a)
