@@ -5,6 +5,7 @@ setup(name='sms_proxy',
       description='An SMS proxy microservice',
       packages=['sms_proxy'],
       author='Flowroute Developers',
+      license='MIT',
       url='https://github.com/flowroute',
       author_email='developer@flowroute.com',
       )

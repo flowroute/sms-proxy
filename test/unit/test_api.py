@@ -169,6 +169,35 @@ def test_post_session():
     assert data['session_id'] is not None
 
 
+def test_post_session_dispatch_failure():
+    """
+    Initially attempts to create a session when there are no VirtualTN's
+    available. The service responds with a 400, and an appropriate message.
+    Attempts again, when there is a VirtualTN in the pool, but reserved,
+    the service will respond again with a 400. After releasing the 
+    VirtualTN, the request succesfully posts, and the response is checked
+    for appropriate values. Ensures both session initialization SMS messages
+    have been fired off.
+    """
+    mock_controller = MockController()
+    app.sms_controller = mock_controller
+    app.sms_controller.resp.append(False)
+    client = app.test_client()
+    test_num = '12223334444'
+    vnum = VirtualTN(test_num)
+    db_session.add(vnum)
+    db_session.commit()
+    resp = client.post('/session', data=json.dumps({'participant_a': '13334445555',
+                                                    'participant_b': '14445556666'}),
+                       content_type='application/json')
+    data = json.loads(resp.data)
+    vnum = VirtualTN.query.filter_by(value=test_num).one()
+    assert resp.status_code == 500
+    assert vnum.session_id is None
+    assert len(ProxySession.query.all()) == 0
+    assert data['message'] == "An error occured when requesting against Flowroute's API."
+
+
 def test_get_session():
     """
     Ensures the '/session' GET method returns json reflecting the state of the
