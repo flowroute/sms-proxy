@@ -1,42 +1,24 @@
 import simplejson as json
 
-from flask import Flask, request, Response, jsonify
+from flask import request, Response, jsonify
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from FlowrouteMessagingLib.Controllers.APIController import APIController
 from FlowrouteMessagingLib.Models.Message import Message
 
-from sms_proxy.settings import (FLOWROUTE_SECRET_KEY, FLOWROUTE_ACCESS_KEY,
-                                ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
-                                NO_SESSION_MSG, DEBUG_MODE, TEST_DB, DB)
-from sms_proxy.database import db_session, init_db
+from sms_proxy.settings import (ORG_NAME, SESSION_START_MSG, SESSION_END_MSG,
+                                NO_SESSION_MSG)
+from sms_proxy.database import db_session
 from sms_proxy.log import log
 from sms_proxy.models import VirtualTN, ProxySession
+from sms_proxy.app import create_app
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-init_db()
-
-sms_controller = APIController(username=FLOWROUTE_ACCESS_KEY,
-                               password=FLOWROUTE_SECRET_KEY)
-
-# Attach the Flowroute messaging controller to the app
-app.sms_controller = sms_controller
+app = create_app()
 
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
-
-
-# Use prod, or dev database depending on debug mode
-if DEBUG_MODE:
-    app.debug = DEBUG_MODE
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + TEST_DB
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB
 
 
 class InternalSMSDispatcherError(Exception):
