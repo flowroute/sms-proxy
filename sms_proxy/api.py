@@ -317,7 +317,6 @@ def proxy_session():
         participant_a, participant_b, virtual_tn = ProxySession.terminate(
             session_id)
         recipients = [participant_a, participant_b]
-        # TODO if this fails, do we 'rollback' all the database changes
         send_message(
             recipients,
             virtual_tn.value,
@@ -356,7 +355,6 @@ def inbound_handler():
                    "status": "failed",
                    "exc": str(e)})
         return Response('There was an issue parsing your request.', status=400)
-    # TODO should this raise an exception if not found?
     rcv_participant, session_id = ProxySession.get_other_participant(
         virtual_tn,
         tx_participant)
