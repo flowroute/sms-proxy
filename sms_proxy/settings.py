@@ -1,8 +1,8 @@
 import os
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-LOG_LEVEL = int(os.environ.get('LOG_LEVEL', 20))
+LOG_LEVEL = int(os.environ.get('LOG_LEVEL', 30))
 
 FLOWROUTE_SECRET_KEY = os.environ.get('FLOWROUTE_SECRET_KEY', None)
 FLOWROUTE_ACCESS_KEY = os.environ.get('FLOWROUTE_ACCESS_KEY', None)
