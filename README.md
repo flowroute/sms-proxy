@@ -23,7 +23,7 @@ The service uses a SQLite backend and exposes multiple API resources which allow
 	```{"available": 0, "virtual_tns": [{"session_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "value": "1NPANXXXXXX"}], "in_use": 1, "pool_size": 1}```
 
 * **DELETE** removes a TN from your pool of virtual TNs.  
-```$ curl -H "Content-Type: application/json" -X DELETE -d '{"value":"12062992129"}' https://yourdomain.com/tn```
+```$ curl -H "Content-Type: application/json" -X DELETE -d '{"value":"1NPANXXXXXX"}' https://yourdomain.com/tn```
 
 	**Sample Response**
 
