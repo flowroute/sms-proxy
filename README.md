@@ -29,14 +29,14 @@ To create and send a message, you will need one or more Flowroute phone numbers,
 4.  Create a **credentials.py** file that includes your Flowroute credentials. 
     This is done to help protect against committing private information to a remote repository. 
 
-    * Using a code text editor add the following lines to a new file, replacing the Access Key and Secret Key with the information from your Flowroute account.
+5.   Using a code text editor add the following lines to a new file, replacing the Access Key and Secret Key with the information from your Flowroute account.
 
             FLOWROUTE_ACCESS_KEY = "Your Access Key"
             FLOWROUTE_SECRET_KEY = "Your Secret Key"
 
-    *   Save the file as **credentials.py** in the **sms\_proxy directory**.
+6.  Save the file as **credentials.py** in the **sms\_proxy directory**.
 
-5.  Deploy the service.
+7.  Deploy the service.
 
 ## Deploy SMS Proxy Authorization
 
@@ -85,7 +85,7 @@ With the service now deployed, configure message settings by customizing **setti
 
 ##### To configure message settings:
 
-1. In the **sms\_proxy_service** directory, open **settings.py** using a code text editor.
+1. In the **sms\_proxy** directory, open **settings.py** using a code text editor.
 
 2. Modify any of the following values as needed:
 
