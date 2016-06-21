@@ -14,7 +14,7 @@ You will need your Access Key, Secret Key. This information can be found on the 
 
 ### Know your Flowroute phone number
 
-To create and send a message, you will need one or more Flowroute phone numbers, which should be enabled for SMS. If you do not know your phone number, or if you need to verify whether or not it is enabled for SMS, you can find it on the [DIDs](https://manage.flowroute.com/accounts/dids/) page of the Flowroute portal.
+To create a proxy session, you will need one or more Flowroute phone numbers, which will be added into your TN pool. If you do not know your phone number, or if you need to verify whether or not it is enabled for SMS, you can find it on the [DIDs](https://manage.flowroute.com/accounts/dids/) page of the Flowroute portal.  The SMS proxy has a 1-to-1 mapping of number to session; the more numbers you add to your pool, the more simultaneous sessions you can create.
 
 ##Run `git clone` and create a credentials.py file
 
@@ -26,17 +26,9 @@ To create and send a message, you will need one or more Flowroute phone numbers,
 
     The `git clone` command clones the **sms-proxy** repository as a sub directory within the parent folder.
 
-4.  Create a **credentials.py** file that includes your Flowroute credentials. 
-    This is done to help protect against committing private information to a remote repository. 
+3.  Open up and edit to settings.py file.  You may configure variables here that are used by the application, or alternatively these settings may be passed in as environment variables when you deploy the service.
 
-5.   Using a code text editor add the following lines to a new file, replacing the Access Key and Secret Key with the information from your Flowroute account.
-
-            FLOWROUTE_ACCESS_KEY = "Your Access Key"
-            FLOWROUTE_SECRET_KEY = "Your Secret Key"
-
-6.  Save the file as **credentials.py** in the **sms\_proxy directory**.
-
-7.  Deploy the service.
+4.  Deploy the service.
 
 ## Deploy SMS Proxy Authorization
 
@@ -90,9 +82,9 @@ With the service now deployed, configure message settings by customizing **setti
 2. Modify any of the following values as needed:
 
         ORG_NAME = os.environ.get('ORG_NAME', 'Your Org Name')
-        SESSION_START_MSG = "Your new session has started, send a message!"
-        SESSION_END_MSG = "This session has ended, talk to you again soon!"
-        NO_SESSION_MSG = "An active session was not found. Please contact support@flowroute.com."
+	SESSION_START_MSG = os.environ.get('SESSION_START_MSG', 'Your new session has started, send a message!')
+	SESSION_END_MSG = os.environ.get('SESSION_END_MSG', 'This session has ended, talk to you again soon!')
+	NO_SESSION_MSG = os.environ.get('NO_SESSION_MSG', 'An active session was not found. Please contact support@yourorg.com')
 
     The following fields can be modified in **settings.py**:
 
