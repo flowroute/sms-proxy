@@ -36,8 +36,6 @@ To create a proxy session, you will need one or more Flowroute phone numbers, wh
 
 Deploying the service can be done by either building and running a Docker container as specified by the provided **Dockerfile**, or by running the application locally with Flask's built-in web server. You can first run the application in test mode before running in production mode. 
 
-SMS Proxy has a 1-to-1 mapping of number to session; the more numbers you add to your pool, the more simultaneous sessions you can create.
-
 >**Note:** During development DEBUG\_MODE should be set to `True` to use the auto-generated test database. Testing can be performed on this database, which drops data in the tables each time the test module is run. Once the development cycle is over, set DEBUG\_MODE to `False` in order to use the production database. Tests cannot be run when the production database is active.
 
 ##### To run the application using Docker:  
@@ -115,7 +113,7 @@ In a test environment, invoke the `docker run` command with the `test` argument 
 
 ## Add virtual TNs and start a session<a name=startsession></a>
 
-Once the application is up-and-running, you can begin adding one or more virtual TNs and creating sessions.
+Once the application is up-and-running, you can begin adding one or more virtual TNs and creating sessions. SMS Proxy has a 1-to-1 mapping of number to session; the more numbers you add to your pool, the more simultaneous sessions you can create.
 
 
 See [Exposed HTTP Resources](#urlresources) for the exposed HTTP resources. 
