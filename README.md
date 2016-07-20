@@ -1,6 +1,6 @@
 # SMS Proxy
 
-SMS Proxy is a microservice that allows you to proxy SMS messages between two recipients using a Flowroute TN (telephone number) as the intermediary layer.  The two participants of a session both send SMS messages to the same TN and are able to receive those messages on their own devices, never exposing either recipient's actual phone number.  
+SMS Proxy is a microservice that allows you to proxy SMS messages between two recipients using a Flowroute TN (telephone number) as the intermediary layer.  The two participants of a session both send SMS messages to the same TN and are able to receive those messages on their own devices, never exposing either recipient's actual phone number. 
 
 The service uses a SQLite backend and exposes multiple API resources; this allows for interaction with the microservice using three standard HTTP API methods: **POST**, **GET**, and **DELETE**.
 
@@ -14,7 +14,7 @@ You will need your Access Key, Secret Key. This information can be found on the 
 
 ### Know your Flowroute phone number
 
-To create a proxy session, you will need one or more Flowroute phone numbers, which will be added into your TN pool. If you do not know your phone number, or if you need to verify whether or not it is enabled for SMS, you can find it on the [DIDs](https://manage.flowroute.com/accounts/dids/) page of the Flowroute portal.  The SMS proxy has a 1-to-1 mapping of number to session; the more numbers you add to your pool, the more simultaneous sessions you can create.
+To create a proxy session, you will need one or more Flowroute phone numbers, which will be added into your TN pool. If you do not know your phone number, or if you need to verify whether or not it is enabled for SMS, you can find it on the [DIDs](https://manage.flowroute.com/accounts/dids/) page of the Flowroute portal.  
 
 ##Run `git clone` and create a credentials.py file
 
@@ -26,15 +26,17 @@ To create a proxy session, you will need one or more Flowroute phone numbers, wh
 
     The `git clone` command clones the **sms-proxy** repository as a sub directory within the parent folder.
 
-3.  Go to **\sms\_proxy\sms\_proxy**.
+3.  Go to **.\sms\_proxy\sms\_proxy**.
 
 4.	 Using a code text editor, open **settings.py**.  In this file you need to set your API credentials. You may configure variables here that are used by the application, or alternatively these settings may be passed in as environment variables when you deploy the service. See [Configure SMS Proxy](#configuresms) for more information.
 
 4.  Deploy the service.
 
-## Deploy SMS Proxy Authorization
+## Deploy SMS Proxy
 
 Deploying the service can be done by either building and running a Docker container as specified by the provided **Dockerfile**, or by running the application locally with Flask's built-in web server. You can first run the application in test mode before running in production mode. 
+
+SMS Proxy has a 1-to-1 mapping of number to session; the more numbers you add to your pool, the more simultaneous sessions you can create.
 
 >**Note:** During development DEBUG\_MODE should be set to `True` to use the auto-generated test database. Testing can be performed on this database, which drops data in the tables each time the test module is run. Once the development cycle is over, set DEBUG\_MODE to `False` in order to use the production database. Tests cannot be run when the production database is active.
 
@@ -79,7 +81,7 @@ With the service now deployed, configure message settings by customizing **setti
 
 ##### To configure message settings:
 
-1. In the **\\sms\_proxy\sms\_proxy** directory, open **settings.py** using a code text editor.
+1. In the **.\sms\_proxy\sms\_proxy** directory, open **settings.py** using a code text editor.
 
 2. Modify any of the following values as needed:
 
