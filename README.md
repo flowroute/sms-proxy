@@ -26,7 +26,7 @@ To create a proxy session, you will need one or more Flowroute phone numbers, wh
 
     The `git clone` command clones the **sms-proxy** repository as a sub directory within the parent folder.
 
-3.  Open up and edit to settings.py file.  You may configure variables here that are used by the application, or alternatively these settings may be passed in as environment variables when you deploy the service.
+3.  Open up and edit **settings.py** file.  In this file you need to set your API credentials. You may configure variables here that are used by the application, or alternatively these settings may be passed in as environment variables when you deploy the service.
 
 4.  Deploy the service.
 
@@ -225,15 +225,17 @@ See [Add virtual TNs and start a session](#startsession) for descriptions of the
 
 	```{"virtual_tn": "1XXXXXXXXXX", "session_id": "366910827c8e4a6593943a28e4931668", "expiry_date": "2016-05-19 22:19:58", "participant_b": "12065551213", "message": "created session", "participant_a": "12065551212"}```
 
-* **GET**  lists all in-progress sessions.  
-```$ curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session```
+* **GET**  lists all in-progress sessions. 
+ 
+		$ curl -H "Content-Type: application/json" -X GET https://yourdomain.com/session
 
 	**Sample Response**
 
 	```{"total_sessions": 1, "sessions": [{"virtual_tn": "1XXXXXXXXXX", "expiry_date": "2016-05-19 22:19:58", "participant_b": "12065551212", "date_created": "2016-05-19 22:09:58", "participant_a": "12065551213", "id": "366910827c8e4a6593943a28e4931668"}]}```
 
 * **DELETE** ends the specified session.  
-$ curl -H "Content-Type: application/json" -X DELETE -d ```'{"session_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}' https://MyDockerHostIP/session```
+
+		$ curl -H "Content-Type: application/json" -X DELETE -d '{"session_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}' https://MyDockerHostIP/session
 
 	**Sample Response**
 
