@@ -26,7 +26,9 @@ To create a proxy session, you will need one or more Flowroute phone numbers, wh
 
     The `git clone` command clones the **sms-proxy** repository as a sub directory within the parent folder.
 
-3.  Open up and edit **settings.py** file.  In this file you need to set your API credentials. You may configure variables here that are used by the application, or alternatively these settings may be passed in as environment variables when you deploy the service.
+3.  Go to **\sms\_proxy\sms\_proxy**.
+
+4.	 Using a code text editor, open **settings.py**.  In this file you need to set your API credentials. You may configure variables here that are used by the application, or alternatively these settings may be passed in as environment variables when you deploy the service. See [Configure SMS Proxy](#configuresms) for more information.
 
 4.  Deploy the service.
 
@@ -71,17 +73,17 @@ Deploying the service can be done by either building and running a Docker contai
 >**Note:** See the <a href="http://flask.pocoo.org/" target="_blank">Flask</a> documentation for more information about the web framework.
 
 
-## Configure SMS Proxy
+## Configure SMS Proxy<a name=configuresms></a>
 
 With the service now deployed, configure message settings by customizing **settings.py**, allows you to customize session parameters, such as start and end messages, or organization name.
 
 ##### To configure message settings:
 
-1. In the **sms\_proxy** directory, open **settings.py** using a code text editor.
+1. In the **\\sms\_proxy\sms\_proxy** directory, open **settings.py** using a code text editor.
 
 2. Modify any of the following values as needed:
 
-        ORG_NAME = os.environ.get('ORG_NAME', 'Your Org Name')
+		ORG_NAME = os.environ.get('ORG_NAME', 'Your Org Name')
 		SESSION_START_MSG = os.environ.get('SESSION_START_MSG', 'Your new session has started, send a message!')
 		SESSION_END_MSG = os.environ.get('SESSION_END_MSG', 'This session has ended, talk to you again soon!')
 		NO_SESSION_MSG = os.environ.get('NO_SESSION_MSG', 'An active session was not found. Please contact support@yourorg.com')
