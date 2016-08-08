@@ -1,10 +1,10 @@
-# SMS Proxy
+# Phone Number Masking - SMS Proxy
 
-SMS Proxy is a microservice that allows you to proxy SMS messages between two recipients using a Flowroute TN (telephone number) as the intermediary layer.  The two participants of a session both send SMS messages to the same TN and are able to receive those messages on their own devices, never exposing either recipient's actual phone number. 
+Phone Number Masking - SMS Proxy is a microservice that allows you to proxy SMS messages between two recipients using a Flowroute TN (telephone number) as the intermediary layer.  The two participants of a session both send SMS messages to the same TN and are able to receive those messages on their own devices, never exposing either recipient's actual phone number. 
 
 The service uses a SQLite backend and exposes multiple API resources; this allows for interaction with the microservice using three standard HTTP API methods: **POST**, **GET**, and **DELETE**.
 
-## Before you deploy SMS Proxy
+## Before you begin
 
 You must have the following before you can deploy SMS Proxy.
 
@@ -32,9 +32,9 @@ To create a proxy session, you will need one or more Flowroute phone numbers, wh
 
 4.  Deploy the service.
 
-## Deploy SMS Proxy
+## Deploy the microservice
 
-Deploying the service can be done by either building and running a Docker container as specified by the provided **Dockerfile**, or by running the application locally with Flask's built-in web server. You can first run the application in test mode before running in production mode. 
+Deploying the microservice can be done by either building and running a Docker container as specified by the provided **Dockerfile**, or by running the application locally with Flask's built-in web server. You can first run the application in test mode before running in production mode. 
 
 >**Note:** During development DEBUG\_MODE should be set to `True` to use the auto-generated test database. Testing can be performed on this database, which drops data in the tables each time the test module is run. Once the development cycle is over, set DEBUG\_MODE to `False` in order to use the production database. Tests cannot be run when the production database is active.
 
@@ -111,7 +111,7 @@ In a test environment, invoke the `docker run` command with the `test` argument 
 
     A `py.test` command is invoked from within the container. When running `coverage`, a cov-report directory is created that contains an **index.html** file detailing test coverage results.
 
-## Add virtual TNs and start a session<a name=startsession></a>
+## Add a virtual TN and start a session<a name=startsession></a>
 
 Once the application is up-and-running, you can begin adding one or more virtual TNs and creating sessions. SMS Proxy has a 1-to-1 mapping of number to session; the more numbers you add to your pool, the more simultaneous sessions you can create.
 
@@ -174,7 +174,7 @@ The following then occurs:
 
 The following URL resources are supported for the endpoints. The following examples show **POST**, **GET**, and **DELETE** HTTP methods for the applicable URL resource.
 
-See [Add virtual TNs and start a session](#startsession) for descriptions of the fields passed in the request.
+See [Add a virtual TN and start a session](#startsession) for descriptions of the fields passed in the request.
 
 ### / 
 * **POST** handles the incoming messages received from Flowroute.  **`/`** is the endpoint that sets the callback URL to the URL set in your Flowroute Manager API settings.
